@@ -369,16 +369,37 @@ Function DisableDefenderComponents
         {
             Try
             {
+                # Primary method
                 Set-MpPreference -DisableRealtimeMonitoring $true -ErrorAction Stop
                 Set-MpPreference -DisableBehaviorMonitoring $true -ErrorAction Stop
                 Set-MpPreference -DisableIOAVProtection $true -ErrorAction Stop
                 Set-MpPreference -DisablePrivacyMode $true -ErrorAction Stop
                 Set-MpPreference -DisableScriptScanning $true -ErrorAction Stop
+
+                # Fallback methods
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection"
+                )
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "DisableRealtimeMonitoring" -Value 1 -Force
+                    Set-ItemProperty -Path $path -Name "DisableBehaviorMonitoring" -Value 1 -Force
+                    Set-ItemProperty -Path $path -Name "DisableOnAccessProtection" -Value 1 -Force
+                    Set-ItemProperty -Path $path -Name "DisableScanOnRealtimeEnable" -Value 1 -Force
+                }
+
+                # Additional service-based approach
+                Stop-Service "WinDefend" -Force -ErrorAction SilentlyContinue
+                Set-Service "WinDefend" -StartupType Disabled -ErrorAction SilentlyContinue
+
                 LogMessage "Real-Time Protection disabled."
             }
             Catch
             {
-                LogMessage "Error disabling Real-Time Protection: $_"
+                LogMessage "Error in primary method for Real-Time Protection, attempting fallback: $_"
             }
         }
 
@@ -387,328 +408,332 @@ Function DisableDefenderComponents
         {
             Try
             {
+                # Primary method
                 Set-MpPreference -MAPSReporting 0 -ErrorAction Stop
                 Set-MpPreference -DisableBlockAtFirstSeen $true -ErrorAction Stop
                 Set-MpPreference -SubmitSamplesConsent 2 -ErrorAction Stop
+
+                # Fallback registry methods
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Spynet"
+                )
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "SpynetReporting" -Value 0 -Force
+                    Set-ItemProperty -Path $path -Name "SubmitSamplesConsent" -Value 2 -Force
+                }
+
+                # Disable cloud-based protection via Windows Defender Security Center
+                $regPath = "HKLM:\SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection"
+                if (-not (Test-Path $regPath)) {
+                    New-Item -Path $regPath -Force | Out-Null
+                }
+                Set-ItemProperty -Path $regPath -Name "EnableNetworkProtection" -Value 0 -Force
+
                 LogMessage "Cloud-Delivered Protection disabled."
             }
             Catch
             {
-                LogMessage "Error disabling Cloud Protection: $_"
+                LogMessage "Error in primary method for Cloud Protection, attempting fallback: $_"
             }
         }
 
-        # Disable Automatic Sample Submission
-        If ($chkSampleSubmission.Checked)
-        {
-            Try
-            {
-                Set-MpPreference -SubmitSamplesConsent 2 -ErrorAction Stop
-                LogMessage "Automatic Sample Submission disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Automatic Sample Submission: $_"
-            }
-        }
-
-        # Disable Scheduled Tasks
-        If ($chkScheduledScans.Checked)
-        {
-            Try
-            {
-                Get-ScheduledTask -TaskPath "\Microsoft\Windows\Windows Defender\" | Disable-ScheduledTask -ErrorAction Stop
-                LogMessage "Scheduled scans disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Scheduled Scans: $_"
-            }
-        }
-
-        # Disable Defender Services via Group Policy Registry Keys
-        If ($chkServices.Checked)
-        {
-            LogMessage "Disabling Defender services via registry Group Policy keys."
-            Try
-            {
-                # Disable Windows Defender Antivirus
-                New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Force | Out-Null
-                Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiSpyware" -Value 1 -Force
-                Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableAntiVirus" -Value 1 -Force
-
-                # Stop and disable services
-                Stop-Service -Name WinDefend -Force -ErrorAction SilentlyContinue
-                Set-Service -Name WinDefend -StartupType Disabled -ErrorAction SilentlyContinue
-                Stop-Service -Name WdNisSvc -Force -ErrorAction SilentlyContinue
-                Set-Service -Name WdNisSvc -StartupType Disabled -ErrorAction SilentlyContinue
-
-                LogMessage "Defender services disabled via registry and service control."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Defender services: $_"
-            }
-        }
-
-        # Disable Firewall
-        If ($chkFirewall.Checked)
-        {
-            Try
-            {
-                Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False -ErrorAction Stop
-                LogMessage "Firewall disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Firewall: $_"
-            }
-        }
-
-        # Disable Automatic Updates
-        If ($chkAutomaticUpdates.Checked)
-        {
-            Try
-            {
-                New-Item -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Force | Out-Null
-                Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1 -Force
-                LogMessage "Automatic Updates disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Automatic Updates: $_"
-            }
-        }
-
-        # Disable Windows Defender SmartScreen
+        # Disable SmartScreen (Multiple layers)
         If ($chkSmartScreen.Checked)
         {
             Try
             {
-                LogMessage "Disabling Windows Defender SmartScreen."
-                Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer" -Name "SmartScreenEnabled" -Value "Off" -Force
-                LogMessage "Windows Defender SmartScreen disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Windows Defender SmartScreen: $_"
-            }
-        }
-
-        # Disable Security Notifications
-        If ($chkSecurityNotifications.Checked)
-        {
-            Try
-            {
-                LogMessage "Disabling Windows Security Notifications."
-                New-Item -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance" -Force | Out-Null
-                Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance" -Name "Enabled" -Value 0 -Force
-                LogMessage "Windows Security Notifications disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Windows Security Notifications: $_"
-            }
-        }
-
-        # Disable Controlled Folder Access
-        If ($chkControlledFolderAccess.Checked)
-        {
-            Try
-            {
-                LogMessage "Disabling Controlled Folder Access."
-                Set-MpPreference -EnableControlledFolderAccess Disabled -ErrorAction Stop
-                LogMessage "Controlled Folder Access disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Controlled Folder Access: $_"
-            }
-        }
-
-        # Disable Core Isolation / Memory Integrity
-        If ($chkCoreIsolation.Checked)
-        {
-            Try
-            {
-                LogMessage "Disabling Core Isolation Memory Integrity."
-                $CIPath = "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity"
-                If (-Not (Test-Path $CIPath))
-                {
-                    New-Item -Path $CIPath -Force | Out-Null
+                # Windows Security SmartScreen
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System",
+                    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer",
+                    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Explorer",
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\SmartScreen",
+                    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost"
+                )
+                
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "EnableSmartScreen" -Value 0 -Force -ErrorAction SilentlyContinue
+                    Set-ItemProperty -Path $path -Name "SmartScreenEnabled" -Value "Off" -Force -ErrorAction SilentlyContinue
                 }
-                Set-ItemProperty -Path $CIPath -Name "Enabled" -Value 0 -Force
-                LogMessage "Core Isolation Memory Integrity disabled."
+
+                # Edge SmartScreen
+                $edgePaths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Edge",
+                    "HKLM:\SOFTWARE\Policies\Microsoft\MicrosoftEdge\PhishingFilter"
+                )
+                foreach ($path in $edgePaths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "SmartScreenEnabled" -Value 0 -Force -ErrorAction SilentlyContinue
+                    Set-ItemProperty -Path $path -Name "EnabledV9" -Value 0 -Force -ErrorAction SilentlyContinue
+                }
+
+                LogMessage "SmartScreen disabled across all layers."
             }
             Catch
             {
-                LogMessage "Error disabling Core Isolation Memory Integrity: $_"
+                LogMessage "Error disabling SmartScreen: $_"
             }
         }
 
-        # Disable Exploit Protection Settings
+        # Disable Exploit Protection with fallbacks
         If ($chkExploitProtection.Checked)
         {
             Try
             {
-                LogMessage "Disabling Exploit Protection."
-                # First try to import the module
-                Import-Module ProcessMitigations -ErrorAction Stop
-                
-                # Alternative method if Set-ProcessMitigation fails
-                Try {
-                    Set-ProcessMitigation -System -Disable DEP,SEHOP,ASLR
-                } Catch {
-                    # Registry-based alternative
-                    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
-                    Set-ItemProperty -Path $regPath -Name "MoveImages" -Value 0 -Force
-                    
-                    # Disable SEHOP
-                    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel"
-                    Set-ItemProperty -Path $regPath -Name "DisableExceptionChainValidation" -Value 1 -Force
-                    
-                    # Disable DEP
-                    bcdedit.exe /set {current} nx AlwaysOff
-                }
-                LogMessage "Exploit Protection disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Exploit Protection: $_"
-            }
-        }
+                # Try PowerShell module first
+                Import-Module ProcessMitigations -ErrorAction SilentlyContinue
+                Set-ProcessMitigation -System -Disable DEP,SEHOP,ASLR -ErrorAction SilentlyContinue
 
-        # Disable Ransomware Protection
-        If ($chkRansomwareProtection.Checked)
-        {
-            Try
-            {
-                LogMessage "Disabling Ransomware Protection."
-                Set-MpPreference -EnableControlledFolderAccess Disabled -ErrorAction Stop
-                LogMessage "Ransomware Protection disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Ransomware Protection: $_"
-            }
-        }
-
-        # Disable Delivery Optimization
-        If ($chkDeliveryOptimization.Checked)
-        {
-            Try
-            {
-                LogMessage "Disabling Windows Update Delivery Optimization."
-                New-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config" -Force | Out-Null
-                Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config" -Name "DODownloadMode" -Value 0 -Force
-                LogMessage "Windows Update Delivery Optimization disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling Delivery Optimization: $_"
-            }
-        }
-
-        # Disable Attack Surface Reduction (ASR) Rules
-        If ($chkASRRules.Checked)
-        {
-            Try
-            {
-                LogMessage "Disabling Attack Surface Reduction Rules."
-                $ASRRuleIds = @(
-                    "BE9BA2D9-53EA-4CDC-84E5-9B1EEEE46550",
-                    "D4F940AB-401B-4EFC-AADC-AD5F3C50688A",
-                    "3B576869-A4EC-4529-8536-B80A7769E899",
-                    "5BEB7EFE-FD9A-4556-801D-275E5FFC04CC",
-                    "D3E037E1-3EB8-44C8-A917-57927947596D",
-                    "D1E49AAC-8F56-4280-B9BA-993A6D77406C",
-                    "26190899-1602-49E8-8B27-EB1D0A1CE869",
-                    "B2B3F03D-6A65-4F15-B69A-2EECB462D9E3",
-                    "9E6AB005-2734-4CB1-A28C-3164716C05BD",
-                    "D4F940AB-401B-4EFC-AADC-AD5F3C50688A"
+                # Registry fallback method
+                $paths = @(
+                    "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management",
+                    "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel",
+                    "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
                 )
-                Set-MpPreference -AttackSurfaceReductionRules_Ids $ASRRuleIds -AttackSurfaceReductionRules_Actions 0 -ErrorAction Stop
-                LogMessage "Attack Surface Reduction Rules disabled."
+                
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                }
+
+                # Disable DEP
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" `
+                    -Name "MoveImages" -Value 0 -Force
+                
+                # Disable SEHOP
+                Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" `
+                    -Name "DisableExceptionChainValidation" -Value 1 -Force
+                
+                # Disable via BCDEdit
+                Start-Process "bcdedit.exe" -ArgumentList "/set nx AlwaysOff" -WindowStyle Hidden -Wait
+
+                LogMessage "Exploit Protection disabled through multiple methods."
             }
             Catch
             {
-                LogMessage "Error disabling ASR Rules: $_"
+                LogMessage "Error in exploit protection disable process: $_"
             }
         }
 
-        # Disable Network Protection
+        # Disable Automatic Sample Submission with fallbacks
+        If ($chkSampleSubmission.Checked)
+        {
+            Try
+            {
+                # Primary method
+                Set-MpPreference -SubmitSamplesConsent 2 -ErrorAction Stop
+
+                # Registry fallbacks
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Spynet"
+                )
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "SubmitSamplesConsent" -Value 0 -Force
+                    Set-ItemProperty -Path $path -Name "SpynetReporting" -Value 0 -Force
+                }
+
+                # Additional registry keys
+                $addPaths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection"
+                )
+                foreach ($path in $addPaths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "DisableIOAVProtection" -Value 1 -Force
+                }
+
+                LogMessage "Automatic Sample Submission disabled."
+            }
+            Catch
+            {
+                LogMessage "Error in sample submission disable process: $_"
+            }
+        }
+
+        # Disable Scheduled Scans with fallbacks
+        If ($chkScheduledScans.Checked)
+        {
+            Try
+            {
+                # Primary method - Disable scheduled tasks
+                Get-ScheduledTask -TaskPath "\Microsoft\Windows\Windows Defender\" | Disable-ScheduledTask -ErrorAction SilentlyContinue
+
+                # Registry fallbacks
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Scan",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Scan"
+                )
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "DisableScheduledScans" -Value 1 -Force
+                    Set-ItemProperty -Path $path -Name "ScheduleDay" -Value 8 -Force # Never
+                }
+
+                # Disable via Task Scheduler direct registry
+                $taskPaths = @(
+                    "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree\Microsoft\Windows\Windows Defender"
+                )
+                foreach ($path in $taskPaths) {
+                    if (Test-Path $path) {
+                        Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
+                    }
+                }
+
+                LogMessage "Scheduled scans disabled."
+            }
+            Catch
+            {
+                LogMessage "Error in scheduled scans disable process: $_"
+            }
+        }
+
+        # Disable Network Protection with fallbacks
         If ($chkNetworkProtection.Checked)
         {
             Try
             {
-                LogMessage "Disabling Network Protection."
+                # Primary method
                 Set-MpPreference -EnableNetworkProtection 0 -ErrorAction Stop
-                LogMessage "Network Protection disabled."
+
+                # Registry fallbacks
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection"
+                )
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "EnableNetworkProtection" -Value 0 -Force
+                }
+
+                # Additional network protection disabling
+                $wdPaths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender"
+                )
+                foreach ($path in $wdPaths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "DisableRoutinelyTakingAction" -Value 1 -Force
+                }
+
+                # Disable Windows Filtering Platform
+                $services = @("BFE", "mpssvc")
+                foreach ($service in $services) {
+                    Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+                    Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+                }
+
+                LogMessage "Network Protection disabled through multiple methods."
             }
             Catch
             {
-                LogMessage "Error disabling Network Protection: $_"
+                LogMessage "Error in network protection disable process: $_"
             }
         }
 
-        # Disable AppLocker
-        If ($chkAppLocker.Checked)
-        {
-            Try
-            {
-                LogMessage "Disabling AppLocker."
-                # Stop and disable the Application Identity service
-                Stop-Service -Name "AppIDSvc" -Force -ErrorAction SilentlyContinue
-                Set-Service -Name "AppIDSvc" -StartupType Disabled -ErrorAction SilentlyContinue
-                
-                # Clear AppLocker policies using registry
-                $regPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\SrpV2"
-                If (Test-Path $regPath) {
-                    Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
-                }
-                
-                # Disable AppLocker enforcement
-                $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\AppLocker"
-                If (-not (Test-Path $regPath)) {
-                    New-Item -Path $regPath -Force | Out-Null
-                }
-                Set-ItemProperty -Path $regPath -Name "EnableAppLocker" -Value 0 -Force
-                
-                LogMessage "AppLocker disabled."
-            }
-            Catch
-            {
-                LogMessage "Error disabling AppLocker: $_"
-            }
-        }
-
-        # Disable Credential Guard
+        # Disable Credential Guard with fallbacks
         If ($chkCredentialGuard.Checked)
         {
             Try
             {
-                LogMessage "Disabling Credential Guard."
+                # Primary registry method
                 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\LSA" -Name "LsaCfgFlags" -Value 0 -Force
-                LogMessage "Credential Guard disabled."
+
+                # Additional registry keys
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard",
+                    "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard"
+                )
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "EnableVirtualizationBasedSecurity" -Value 0 -Force
+                    Set-ItemProperty -Path $path -Name "RequirePlatformSecurityFeatures" -Value 0 -Force
+                    Set-ItemProperty -Path $path -Name "LsaCfgFlags" -Value 0 -Force
+                }
+
+                # Disable via BCDEdit
+                Start-Process "bcdedit.exe" -ArgumentList "/set hypervisorlaunchtype off" -WindowStyle Hidden -Wait
+                Start-Process "bcdedit.exe" -ArgumentList "/set virtualization off" -WindowStyle Hidden -Wait
+
+                # Disable related services
+                $services = @("SecurityHealthService", "SgrmBroker")
+                foreach ($service in $services) {
+                    Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+                    Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+                }
+
+                LogMessage "Credential Guard disabled through multiple methods."
             }
             Catch
             {
-                LogMessage "Error disabling Credential Guard: $_"
+                LogMessage "Error in credential guard disable process: $_"
             }
         }
 
-        # Disable Firewall Advanced Security
-        If ($chkFirewallAdvanced.Checked)
+        # Disable Ransomware Protection with fallbacks
+        If ($chkRansomwareProtection.Checked)
         {
             Try
             {
-                LogMessage "Disabling Windows Defender Firewall with Advanced Security."
-                Set-NetFirewallProfile -Profile Domain,Public,Private -DefaultInboundAction Allow -ErrorAction Stop
-                LogMessage "Firewall Advanced Security disabled."
+                # Primary method
+                Set-MpPreference -EnableControlledFolderAccess Disabled -ErrorAction Stop
+
+                # Registry fallbacks
+                $paths = @(
+                    "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access",
+                    "HKLM:\SOFTWARE\Microsoft\Windows Defender\Windows Defender Exploit Guard\Controlled Folder Access"
+                )
+                foreach ($path in $paths) {
+                    if (-not (Test-Path $path)) {
+                        New-Item -Path $path -Force | Out-Null
+                    }
+                    Set-ItemProperty -Path $path -Name "EnableControlledFolderAccess" -Value 0 -Force
+                }
+
+                # Remove protected folders
+                $protectedFolders = Get-MpPreference | Select-Object -ExpandProperty ControlledFolderAccessProtectedFolders
+                if ($protectedFolders) {
+                    foreach ($folder in $protectedFolders) {
+                        Remove-MpPreference -ControlledFolderAccessProtectedFolders $folder
+                    }
+                }
+
+                # Remove allowed applications
+                $allowedApps = Get-MpPreference | Select-Object -ExpandProperty ControlledFolderAccessAllowedApplications
+                if ($allowedApps) {
+                    foreach ($app in $allowedApps) {
+                        Remove-MpPreference -ControlledFolderAccessAllowedApplications $app
+                    }
+                }
+
+                LogMessage "Ransomware Protection disabled through multiple methods."
             }
             Catch
             {
-                LogMessage "Error disabling Firewall Advanced Security: $_"
+                LogMessage "Error in ransomware protection disable process: $_"
             }
         }
 
