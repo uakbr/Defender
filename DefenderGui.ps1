@@ -3,12 +3,39 @@
     Enhanced GUI Script to Disable or Enable Microsoft Defender and Related Components on Windows 10/11.
 
 .DESCRIPTION
-    This script provides a graphical user interface to manage Microsoft Defender settings and related security features.
-    It includes failsafe mechanisms, status indicators, additional components, and enhanced user feedback.
+    - This script provides a graphical user interface to manage Microsoft Defender settings and related security features.
+    - Additional features include Tamper Protection check, backup and restore of Defender settings, and enhanced user feedback.
+    - More features will be added such as the following list of 25 as they pertain to the management of the Windows Defender feature itself, not including things like backup or nonsense like errors or logging, more so, new, novel, mechanisms to disable windows defender and other security features:
+
+    1. Tamper Protection check
+    2. Disable Windows Defender
+    3. Disable Windows Defender SmartScreen
+    4. Disable Controlled Folder Access
+    5. Disable Exploit Protection
+    6. Disable Network Protection
+    7. Disable Real-Time Protection
+    8. Disable Cloud Protection
+    9. Disable Automatic Sample Submission
+    10. Disable Scheduled Scans
+    11. Disable Defender Services
+    12. Disable Firewall
+    13. Disable Automatic Updates
+    14. Disable SmartScreen
+    15. Disable Security Notifications
+    16. Disable Core Isolation / Memory Integrity
+    17. Disable Ransomware Protection
+    18. Disable Delivery Optimization
+    19. Disable Attack Surface Reduction (ASR) Rules
+    20. Disable Network Protection
+    21. Disable Application Control Policies (AppLocker)
+    22. Disable Credential Guard
+    23. Disable Exploit Guard
+    24. Disable Exploit Protection
+    25. Disable Microsoft Defender Antivirus
 
 .NOTES
-    Author: Your Name
-    Date: Today's Date
+    Author: Umair Akbar
+    Date: 12/01/2024
 #>
 
 # Ensure the script runs with administrative privileges
@@ -525,7 +552,24 @@ Function DisableDefenderComponents
             Try
             {
                 LogMessage "Disabling Exploit Protection."
-                Set-ProcessMitigation -System -Disable @("SEHOP", "ASLR") -Enable @("DEP")
+                # First try to import the module
+                Import-Module ProcessMitigations -ErrorAction Stop
+                
+                # Alternative method if Set-ProcessMitigation fails
+                Try {
+                    Set-ProcessMitigation -System -Disable DEP,SEHOP,ASLR
+                } Catch {
+                    # Registry-based alternative
+                    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management"
+                    Set-ItemProperty -Path $regPath -Name "MoveImages" -Value 0 -Force
+                    
+                    # Disable SEHOP
+                    $regPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel"
+                    Set-ItemProperty -Path $regPath -Name "DisableExceptionChainValidation" -Value 1 -Force
+                    
+                    # Disable DEP
+                    bcdedit.exe /set {current} nx AlwaysOff
+                }
                 LogMessage "Exploit Protection disabled."
             }
             Catch
@@ -613,8 +657,23 @@ Function DisableDefenderComponents
             Try
             {
                 LogMessage "Disabling AppLocker."
-                # Remove AppLocker policies
-                Set-AppLockerPolicy -PolicyFilePath (New-AppLockerPolicy -DefaultRule -RuleType None -RuleTypeScript None -User "Everyone") -Merge -ErrorAction Stop
+                # Stop and disable the Application Identity service
+                Stop-Service -Name "AppIDSvc" -Force -ErrorAction SilentlyContinue
+                Set-Service -Name "AppIDSvc" -StartupType Disabled -ErrorAction SilentlyContinue
+                
+                # Clear AppLocker policies using registry
+                $regPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\SrpV2"
+                If (Test-Path $regPath) {
+                    Remove-Item -Path $regPath -Recurse -Force -ErrorAction SilentlyContinue
+                }
+                
+                # Disable AppLocker enforcement
+                $regPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\AppLocker"
+                If (-not (Test-Path $regPath)) {
+                    New-Item -Path $regPath -Force | Out-Null
+                }
+                Set-ItemProperty -Path $regPath -Name "EnableAppLocker" -Value 0 -Force
+                
                 LogMessage "AppLocker disabled."
             }
             Catch
@@ -857,7 +916,7 @@ Function EnableDefenderComponents
             Try
             {
                 LogMessage "Enabling Exploit Protection."
-                Set-ProcessMitigation -System -Enable @("DEP", "SEHOP", "ASLR")
+                Set-ProcessMitigation -System -Enable DEP,SEHOP,ASLR
                 LogMessage "Exploit Protection enabled."
             }
             Catch
