@@ -439,6 +439,18 @@ Function GetComponentStatus
     # Security Subsystem
     $ComponentStatus["SecuritySubsystem"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa" -Name "DisableSecuritySubsystem" -ErrorAction SilentlyContinue).DisableSecuritySubsystem -eq 1
 
+    # Process Injection Controls
+    $ComponentStatus["ProcessInjectionControls"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" -Name "DisableProcessInjectionProtection" -ErrorAction SilentlyContinue).DisableProcessInjectionProtection -eq 1
+
+    # System Integrity Policies
+    $ComponentStatus["SystemIntegrityPolicies"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy" -Name "DisableIntegrityChecks" -ErrorAction SilentlyContinue).DisableIntegrityChecks -eq 1
+
+    # Additional Security Providers
+    $ComponentStatus["AdditionalSecurityProviders"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders" -Name "DisableProviderVerification" -ErrorAction SilentlyContinue).DisableProviderVerification -eq 1
+
+    # Hardware Security Features
+    $ComponentStatus["HardwareSecurityFeatures"] = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard" -Name "DisableHardwareBasedSecurity" -ErrorAction SilentlyContinue).DisableHardwareBasedSecurity -eq 1
+
     return $ComponentStatus
 }
 
@@ -857,6 +869,10 @@ Function DisableDefenderComponents
             Disable-KernelSecurity
             Bypass-MemoryProtection
             Modify-SecuritySubsystem
+            Disable-ProcessInjectionControls
+            Modify-SystemIntegrityPolicies
+            Bypass-SecurityProviders
+            Disable-HardwareSecurityFeatures
         }
 
         [System.Windows.Forms.MessageBox]::Show("Selected Defender components have been disabled. Please restart your computer for changes to take effect.", "Operation Completed", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
@@ -1143,6 +1159,7 @@ Function EnableDefenderComponents
                 LogMessage "Error enabling Network Protection: $_"
             }
         }
+        }
 
         # Enable AppLocker
         If ($chkAppLocker.Checked)
@@ -1355,6 +1372,9 @@ Function Disable-ForensicsCapabilities
         # Clear Prefetch
         Remove-Item C:\Windows\Prefetch\*.* -Force -ErrorAction SilentlyContinue
 
+
+
+
         # Disable Superfetch
         Stop-Service SysMain -Force
         Set-Service SysMain -StartupType Disabled
@@ -1362,6 +1382,7 @@ Function Disable-ForensicsCapabilities
         # Remove Memory Dumps
         Remove-Item C:\Windows\Memory.dmp -Force -ErrorAction SilentlyContinue
         Remove-Item C:\Windows\Minidump\*.* -Force -ErrorAction SilentlyContinue
+
 
         LogMessage "Forensics Capabilities disabled successfully."
     }
@@ -2128,116 +2149,367 @@ Function Modify-SecuritySubsystem
     }
 }
 
+# Function to Disable Process Injection Controls
+Function Disable-ProcessInjectionControls 
+{
+    Try {
+        LogMessage "Disabling Process Injection Controls..."
+
+        # Disable process injection protections
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" /v "DisableProcessInjectionProtection" /t REG_DWORD /d 1 /f
+        
+        # Modify process creation flags
+        reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\csrss.exe" /v "DisableInjectionControls" /t REG_DWORD /d 1 /f
+        
+        # Disable DLL injection protection
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v "DisableDLLInjectionProtection" /t REG_DWORD /d 1 /f
+
+        LogMessage "Process Injection Controls disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling process injection controls: $_"
+    }
+}
+
+# Function to Modify System Integrity Policies
+Function Modify-SystemIntegrityPolicies 
+{
+    Try {
+        LogMessage "Modifying System Integrity Policies..."
+
+        # Disable system integrity checks
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy" /v "DisableIntegrityChecks" /t REG_DWORD /d 1 /f
+        
+        # Modify integrity policy settings
+        reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v "DisableIntegrityPolicies" /t REG_DWORD /d 1 /f
+        
+        # Disable code integrity
+        Start-Process "bcdedit.exe" -ArgumentList "/set nointegritychecks on" -WindowStyle Hidden -Wait
+
+        LogMessage "System Integrity Policies modified successfully."
+    }
+    Catch {
+        LogMessage "Error modifying system integrity policies: $_"
+    }
+}
+
+# Function to Bypass Additional Security Providers
+Function Bypass-SecurityProviders 
+{
+    Try {
+        LogMessage "Bypassing Additional Security Providers..."
+
+        # Disable security provider verification
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders" /v "DisableProviderVerification" /t REG_DWORD /d 1 /f
+        
+        # Modify authentication settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa" /v "DisableAuthenticationProviders" /t REG_DWORD /d 1 /f
+        
+        # Disable security package validation
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig" /v "DisablePackageValidation" /t REG_DWORD /d 1 /f
+
+        LogMessage "Additional Security Providers bypassed successfully."
+    }
+    Catch {
+        LogMessage "Error bypassing security providers: $_"
+    }
+}
+
+# Function to Disable Hardware Security Features
+Function Disable-HardwareSecurityFeatures 
+{
+    Try {
+        LogMessage "Disabling Hardware Security Features..."
+
+        # Disable hardware-based security
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard" /v "DisableHardwareBasedSecurity" /t REG_DWORD /d 1 /f
+        
+        # Modify hardware security settings
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Config" /v "DisableHardwareEnforcement" /t REG_DWORD /d 1 /f
+        
+        # Disable hardware-based isolation
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios" /v "DisableHardwareIsolation" /t REG_DWORD /d 1 /f
+
+        # Disable TPM-based security
+        reg add "HKLM\SOFTWARE\Policies\Microsoft\TPM" /v "DisableTPMProtection" /t REG_DWORD /d 1 /f
+
+        LogMessage "Hardware Security Features disabled successfully."
+    }
+    Catch {
+        LogMessage "Error disabling hardware security features: $_"
+    }
+}
+
 # Build the GUI
 [void][System.Reflection.Assembly]::LoadWithPartialName('System.Drawing')
 [void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms')
 
-# Create Form
-$Form = New-Object System.Windows.Forms.Form
-$Form.Text = "Microsoft Defender Management"
-$Form.Size = New-Object System.Drawing.Size(600, 1200)
-$Form.StartPosition = "CenterScreen"
+# Create tooltip provider
+$toolTip = New-Object System.Windows.Forms.ToolTip
+$toolTip.InitialDelay = 500
+$toolTip.ReshowDelay = 200
+$toolTip.AutoPopDelay = 10000
+$toolTip.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 48)
+$toolTip.ForeColor = [System.Drawing.Color]::White
 
-# Labels
-$lblInstructions = New-Object System.Windows.Forms.Label
-$lblInstructions.Location = New-Object System.Drawing.Point(10, 10)
-$lblInstructions.Size = New-Object System.Drawing.Size(580, 40)
-$lblInstructions.Text = "Select the Defender components you wish to disable or enable."
-
-$Form.Controls.Add($lblInstructions)
-
-# Checkboxes and Status Labels
-$Components = @(
-    @{Name="Real-Time Protection"; Variable="chkRealTimeProtection"; StatusLabel="lblRTPStatus"; Location=60},
-    @{Name="Cloud-Delivered Protection"; Variable="chkCloudProtection"; StatusLabel="lblCloudStatus"; Location=90},
-    @{Name="Automatic Sample Submission"; Variable="chkSampleSubmission"; StatusLabel="lblSampleStatus"; Location=120},
-    @{Name="Scheduled Scans"; Variable="chkScheduledScans"; StatusLabel="lblScheduledStatus"; Location=150},
-    @{Name="Defender Services"; Variable="chkServices"; StatusLabel="lblServicesStatus"; Location=180},
-    @{Name="Firewall"; Variable="chkFirewall"; StatusLabel="lblFirewallStatus"; Location=210},
-    @{Name="Automatic Updates"; Variable="chkAutomaticUpdates"; StatusLabel="lblAUStatus"; Location=240},
-    @{Name="Windows Defender SmartScreen"; Variable="chkSmartScreen"; StatusLabel="lblSmartScreenStatus"; Location=270},
-    @{Name="Security Notifications"; Variable="chkSecurityNotifications"; StatusLabel="lblNotificationsStatus"; Location=300},
-    @{Name="Controlled Folder Access"; Variable="chkControlledFolderAccess"; StatusLabel="lblCFAStatus"; Location=330},
-    @{Name="Core Isolation Memory Integrity"; Variable="chkCoreIsolation"; StatusLabel="lblCoreIsolationStatus"; Location=360},
-    @{Name="Exploit Protection"; Variable="chkExploitProtection"; StatusLabel="lblExploitProtectionStatus"; Location=390},
-    @{Name="Ransomware Protection"; Variable="chkRansomwareProtection"; StatusLabel="lblRansomwareStatus"; Location=420},
-    @{Name="Delivery Optimization"; Variable="chkDeliveryOptimization"; StatusLabel="lblDOStatus"; Location=450},
-    @{Name="Attack Surface Reduction Rules"; Variable="chkASRRules"; StatusLabel="lblASRStatus"; Location=480},
-    @{Name="Network Protection"; Variable="chkNetworkProtection"; StatusLabel="lblNPStatus"; Location=510},
-    @{Name="AppLocker"; Variable="chkAppLocker"; StatusLabel="lblAppLockerStatus"; Location=540},
-    @{Name="Credential Guard"; Variable="chkCredentialGuard"; StatusLabel="lblCredentialGuardStatus"; Location=570},
-    @{Name="Firewall Advanced Security"; Variable="chkFirewallAdvanced"; StatusLabel="lblFirewallAdvancedStatus"; Location=600},
-    @{Name="Advanced Protection Features"; Variable="chkAdvancedProtection"; StatusLabel="lblAdvancedProtectionStatus"; Location=630}
-)
-
-Foreach ($Component in $Components)
-{
-    # Checkbox
-    Set-Variable -Name $Component.Variable -Value (New-Object System.Windows.Forms.CheckBox)
-    $CheckBox = Get-Variable -Name $Component.Variable -ValueOnly
-    $CheckBox.Location = New-Object System.Drawing.Point(10, $Component.Location)
-    $CheckBox.Size = New-Object System.Drawing.Size(400, 20)
-    $CheckBox.Text = $Component.Name
-    $CheckBox.Checked = $true
-
-    # Status Label
-    Set-Variable -Name $Component.StatusLabel -Value (New-Object System.Windows.Forms.Label)
-    $StatusLabel = Get-Variable -Name $Component.StatusLabel -ValueOnly
-    $StatusLabel.Location = New-Object System.Drawing.Point(420, $Component.Location)
-    $StatusLabel.Size = New-Object System.Drawing.Size(150, 20)
-    $StatusLabel.Text = "Status: Unknown"
-
-    $Form.Controls.Add($CheckBox)
-    $Form.Controls.Add($StatusLabel)
+# Define detailed tooltips for each component
+$tooltipDescriptions = @{
+    "Real-Time Protection" = "Provides continuous scanning of files and processes. Disabling this will stop active monitoring but may increase system performance."
+    
+    "Cloud-Delivered Protection" = "Enables cloud-based detection of new threats. Disabling reduces network traffic but may delay detection of new malware."
+    
+    "Automatic Sample Submission" = "Sends suspicious files to Microsoft for analysis. Disabling improves privacy but may reduce threat detection capabilities."
+    
+    "Core Isolation Memory Integrity" = "Protects core system processes using virtualization. Disabling may improve compatibility with older software."
+    
+    "Exploit Protection" = "Prevents common exploit techniques. Disabling reduces memory protection but may improve application compatibility."
+    
+    "Controlled Folder Access" = "Protects folders from unauthorized changes. Disabling allows more flexible file access but reduces ransomware protection."
+    
+    "Firewall" = "Controls network traffic. Disabling removes network filtering but may improve connection speeds."
+    
+    "Network Protection" = "Blocks malicious network connections. Disabling allows unrestricted network access but increases exposure to threats."
+    
+    "Firewall Advanced Security" = "Provides granular network traffic control. Disabling simplifies network access but reduces network security."
+    
+    "Advanced Protection Features" = "Enables additional security measures. Disabling reduces system overhead but may expose to sophisticated attacks."
+    
+    "System Guard" = "Ensures system integrity during boot. Disabling speeds up boot time but reduces boot security."
+    
+    "Kernel Protection" = "Protects the Windows kernel from modifications. Disabling allows kernel-level changes but reduces core system security."
 }
 
-# Buttons
-$btnDisable = New-Object System.Windows.Forms.Button
-$btnDisable.Location = New-Object System.Drawing.Point(10, 650)
-$btnDisable.Size = New-Object System.Drawing.Size(280, 30)
-$btnDisable.Text = "Disable Selected"
-$btnDisable.Add_Click({
-    BackupDefenderSettings
-    DisableDefenderComponents
+# Create Form
+$Form = New-Object System.Windows.Forms.Form
+$Form.Text = "Windows Defender Security Manager"
+$Form.Size = New-Object System.Drawing.Size(800, 900)
+$Form.StartPosition = "CenterScreen"
+$Form.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+$Form.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$Form.Icon = [System.Drawing.SystemIcons]::Shield
+
+# Add after the form creation but before adding controls
+
+# Theme colors
+$themes = @{
+    "Light" = @{
+        "Background" = [System.Drawing.Color]::FromArgb(240, 240, 240)
+        "ForeColor" = [System.Drawing.Color]::Black
+        "HeaderBackground" = [System.Drawing.Color]::FromArgb(0, 120, 215)
+        "HeaderForeColor" = [System.Drawing.Color]::White
+        "ButtonBackground" = [System.Drawing.Color]::FromArgb(0, 120, 215)
+        "ButtonForeColor" = [System.Drawing.Color]::White
+        "PanelBackground" = [System.Drawing.Color]::White
+        "BorderColor" = [System.Drawing.Color]::FromArgb(213, 213, 213)
+    }
+    "Dark" = @{
+        "Background" = [System.Drawing.Color]::FromArgb(45, 45, 48)
+        "ForeColor" = [System.Drawing.Color]::White
+        "HeaderBackground" = [System.Drawing.Color]::FromArgb(30, 30, 30)
+        "HeaderForeColor" = [System.Drawing.Color]::White
+        "ButtonBackground" = [System.Drawing.Color]::FromArgb(0, 122, 204)
+        "ButtonForeColor" = [System.Drawing.Color]::White
+        "PanelBackground" = [System.Drawing.Color]::FromArgb(37, 37, 38)
+        "BorderColor" = [System.Drawing.Color]::FromArgb(67, 67, 70)
+    }
+}
+
+# Function to apply theme
+Function Apply-Theme {
+    param (
+        [string]$ThemeName
+    )
+    
+    $theme = $themes[$ThemeName]
+    
+    # Apply to form
+    $Form.BackColor = $theme["Background"]
+    $Form.ForeColor = $theme["ForeColor"]
+    
+    # Apply to header
+    $headerPanel.BackColor = $theme["HeaderBackground"]
+    $lblTitle.ForeColor = $theme["HeaderForeColor"]
+    
+    # Apply to instructions
+    $instructionsPanel.BackColor = $theme["Background"]
+    $lblInstructions.ForeColor = $theme["ForeColor"]
+    
+    # Apply to category panels
+    foreach ($control in $mainPanel.Controls) {
+        if ($control -is [System.Windows.Forms.GroupBox]) {
+            $control.BackColor = $theme["PanelBackground"]
+            $control.ForeColor = $theme["ForeColor"]
+        }
+    }
+    
+    # Apply to buttons
+    $btnApply.BackColor = $theme["ButtonBackground"]
+    $btnApply.ForeColor = $theme["ButtonForeColor"]
+    $btnRefresh.BackColor = $theme["ButtonBackground"]
+    $btnRefresh.ForeColor = $theme["ButtonForeColor"]
+    
+    # Update tooltip colors
+    $toolTip.BackColor = $theme["PanelBackground"]
+    $toolTip.ForeColor = $theme["ForeColor"]
+}
+
+# Add theme toggle button
+$btnTheme = New-Object System.Windows.Forms.Button
+$btnTheme.Text = "Toggle Theme"
+$btnTheme.Size = New-Object System.Drawing.Size(120, 30)
+$btnTheme.Location = New-Object System.Drawing.Point(360, 15)
+$btnTheme.BackColor = $themes["Light"]["ButtonBackground"]
+$btnTheme.ForeColor = $themes["Light"]["ButtonForeColor"]
+$btnTheme.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$buttonPanel.Controls.Add($btnTheme)
+
+# Theme toggle event handler
+$script:currentTheme = "Light"
+$btnTheme.Add_Click({
+    $script:currentTheme = if ($script:currentTheme -eq "Light") { "Dark" } else { "Light" }
+    Apply-Theme $script:currentTheme
 })
 
-$btnEnable = New-Object System.Windows.Forms.Button
-$btnEnable.Location = New-Object System.Drawing.Point(310, 650)
-$btnEnable.Size = New-Object System.Drawing.Size(280, 30)
-$btnEnable.Text = "Enable Selected"
-$btnEnable.Add_Click({
-    EnableDefenderComponents
-})
+# Apply initial theme
+Apply-Theme "Light"
 
-$btnRestore = New-Object System.Windows.Forms.Button
-$btnRestore.Location = New-Object System.Drawing.Point(10, 700)
-$btnRestore.Size = New-Object System.Drawing.Size(580, 30)
-$btnRestore.Text = "Restore Settings from Backup"
-$btnRestore.Add_Click({
-    RestoreDefenderSettings
-})
+# Create main container panel with scrolling
+$mainPanel = New-Object System.Windows.Forms.Panel
+$mainPanel.AutoScroll = $true
+$mainPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$mainPanel.Padding = New-Object System.Windows.Forms.Padding(20)
+$Form.Controls.Add($mainPanel)
 
+# Header Panel
+$headerPanel = New-Object System.Windows.Forms.Panel
+$headerPanel.Height = 60
+$headerPanel.Dock = [System.Windows.Forms.DockStyle]::Top
+$headerPanel.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 215)
+$mainPanel.Controls.Add($headerPanel)
+
+# Title Label
+$lblTitle = New-Object System.Windows.Forms.Label
+$lblTitle.Text = "Windows Defender Security Manager"
+$lblTitle.ForeColor = [System.Drawing.Color]::White
+$lblTitle.Font = New-Object System.Drawing.Font("Segoe UI", 16, [System.Drawing.FontStyle]::Bold)
+$lblTitle.AutoSize = $true
+$lblTitle.Location = New-Object System.Drawing.Point(20, 15)
+$headerPanel.Controls.Add($lblTitle)
+
+# Instructions Panel
+$instructionsPanel = New-Object System.Windows.Forms.Panel
+$instructionsPanel.Height = 50
+$instructionsPanel.Dock = [System.Windows.Forms.DockStyle]::Top
+$instructionsPanel.Padding = New-Object System.Windows.Forms.Padding(20, 10, 20, 10)
+$mainPanel.Controls.Add($instructionsPanel)
+
+# Instructions Label
+$lblInstructions = New-Object System.Windows.Forms.Label
+$lblInstructions.Text = "Select the security components you want to disable. Use caution as this may affect system security."
+$lblInstructions.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$lblInstructions.AutoSize = $true
+$instructionsPanel.Controls.Add($lblInstructions)
+
+# Create Category Panels
+$categories = @{
+    "Core Protection" = @(
+        "Real-Time Protection",
+        "Cloud-Delivered Protection",
+        "Automatic Sample Submission"
+    )
+    "System Security" = @(
+        "Core Isolation Memory Integrity",
+        "Exploit Protection",
+        "Controlled Folder Access"
+    )
+    "Network Security" = @(
+        "Firewall",
+        "Network Protection",
+        "Firewall Advanced Security"
+    )
+    "Advanced Features" = @(
+        "Advanced Protection Features",
+        "System Guard",
+        "Kernel Protection"
+    )
+}
+
+$yOffset = 120
+foreach ($category in $categories.Keys) {
+    # Category Panel
+    $categoryPanel = New-Object System.Windows.Forms.GroupBox
+    $categoryPanel.Text = $category
+    $categoryPanel.Location = New-Object System.Drawing.Point(20, $yOffset)
+    $categoryPanel.Size = New-Object System.Drawing.Size(740, 150)
+    $categoryPanel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+    $mainPanel.Controls.Add($categoryPanel)
+
+    # Add components to category
+    $xPos = 20
+    $yPos = 30
+    foreach ($component in $categories[$category]) {
+        # Component Container
+        $componentPanel = New-Object System.Windows.Forms.Panel
+        $componentPanel.Size = New-Object System.Drawing.Size(230, 50)
+        $componentPanel.Location = New-Object System.Drawing.Point($xPos, $yPos)
+        $categoryPanel.Controls.Add($componentPanel)
+
+        # Checkbox
+        $checkbox = New-Object System.Windows.Forms.CheckBox
+        $checkbox.Text = $component
+        $checkbox.Location = New-Object System.Drawing.Point(5, 5)
+        $checkbox.AutoSize = $true
+        $checkbox.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+        $componentPanel.Controls.Add($checkbox)
+
+        # Status Label
+        $statusLabel = New-Object System.Windows.Forms.Label
+        $statusLabel.Text = "Status: Enabled"
+        $statusLabel.ForeColor = [System.Drawing.Color]::Green
+        $statusLabel.Location = New-Object System.Drawing.Point(20, 25)
+        $statusLabel.AutoSize = $true
+        $statusLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+        $componentPanel.Controls.Add($statusLabel)
+
+        $xPos += 240
+        if ($xPos > 500) {
+            $xPos = 20
+            $yPos += 60
+        }
+
+        # Add tooltip to the component panel
+        $toolTip.SetToolTip($componentPanel, $tooltipDescriptions[$component])
+        $toolTip.SetToolTip($checkbox, $tooltipDescriptions[$component])
+    }
+
+    $yOffset += 170
+}
+
+# Action Buttons Panel
+$buttonPanel = New-Object System.Windows.Forms.Panel
+$buttonPanel.Height = 60
+$buttonPanel.Dock = [System.Windows.Forms.DockStyle]::Bottom
+$buttonPanel.Padding = New-Object System.Windows.Forms.Padding(20, 10, 20, 10)
+$mainPanel.Controls.Add($buttonPanel)
+
+# Apply Button
+$btnApply = New-Object System.Windows.Forms.Button
+$btnApply.Text = "Apply Changes"
+$btnApply.Size = New-Object System.Drawing.Size(120, 30)
+$btnApply.Location = New-Object System.Drawing.Point(640, 15)
+$btnApply.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 215)
+$btnApply.ForeColor = [System.Drawing.Color]::White
+$btnApply.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$buttonPanel.Controls.Add($btnApply)
+
+# Refresh Button
 $btnRefresh = New-Object System.Windows.Forms.Button
-$btnRefresh.Location = New-Object System.Drawing.Point(10, 750)
-$btnRefresh.Size = New-Object System.Drawing.Size(580, 30)
 $btnRefresh.Text = "Refresh Status"
-$btnRefresh.Add_Click({
-    RefreshStatus
-})
-
-$btnExit = New-Object System.Windows.Forms.Button
-$btnExit.Location = New-Object System.Drawing.Point(10, 800)
-$btnExit.Size = New-Object System.Drawing.Size(580, 30)
-$btnExit.Text = "Exit"
-$btnExit.Add_Click({
-    $Form.Close()
-})
-
-$Form.Controls.Add($btnDisable)
-$Form.Controls.Add($btnEnable)
-$Form.Controls.Add($btnRestore)
-$Form.Controls.Add($btnRefresh)
-$Form.Controls.Add($btnExit)
+$btnRefresh.Size = New-Object System.Drawing.Size(120, 30)
+$btnRefresh.Location = New-Object System.Drawing.Point(500, 15)
+$btnRefresh.BackColor = [System.Drawing.Color]::White
+$btnRefresh.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$buttonPanel.Controls.Add($btnRefresh)
 
 # Run initial checks
 CheckTamperProtection
