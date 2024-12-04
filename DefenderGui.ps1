@@ -5,34 +5,6 @@
 .DESCRIPTION
     - This script provides a graphical user interface to manage Microsoft Defender settings and related security features.
     - Additional features include Tamper Protection check, backup and restore of Defender settings, and enhanced user feedback.
-    - More features will be added such as the following list of 25 as they pertain to the management of the Windows Defender feature itself, not including things like backup or nonsense like errors or logging, more so, new, novel, mechanisms to disable windows defender and other security features:
-
-    1. Tamper Protection check
-    2. Disable Windows Defender
-    3. Disable Windows Defender SmartScreen
-    4. Disable Controlled Folder Access
-    5. Disable Exploit Protection
-    6. Disable Network Protection
-    7. Disable Real-Time Protection
-    8. Disable Cloud Protection
-    9. Disable Automatic Sample Submission
-    10. Disable Scheduled Scans
-    11. Disable Defender Services
-    12. Disable Firewall
-    13. Disable Automatic Updates
-    14. Disable SmartScreen
-    15. Disable Security Notifications
-    16. Disable Core Isolation / Memory Integrity
-    17. Disable Ransomware Protection
-    18. Disable Delivery Optimization
-    19. Disable Attack Surface Reduction (ASR) Rules
-    20. Disable Network Protection
-    21. Disable Application Control Policies (AppLocker)
-    22. Disable Credential Guard
-    23. Disable Exploit Guard
-    24. Disable Exploit Protection
-    25. Disable Microsoft Defender Antivirus
-    
 
 .NOTES
     Author: Umair Akbar
