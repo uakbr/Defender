@@ -2251,113 +2251,29 @@ $tooltipDescriptions = @{
     "Kernel Protection" = "Protects the Windows kernel from modifications. Disabling allows kernel-level changes but reduces core system security."
 }
 
-# Create Form
+# Create Form with fixed size and scrolling
 $Form = New-Object System.Windows.Forms.Form
 $Form.Text = "Windows Defender Security Manager"
-$Form.Size = New-Object System.Drawing.Size(800, 900)
+$Form.Size = New-Object System.Drawing.Size(800, 700) # Fixed reasonable height
 $Form.StartPosition = "CenterScreen"
 $Form.BackColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
 $Form.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $Form.Icon = [System.Drawing.SystemIcons]::Shield
-
-# Add after the form creation but before adding controls
-
-# Theme colors
-$themes = @{
-    "Light" = @{
-        "Background" = [System.Drawing.Color]::FromArgb(240, 240, 240)
-        "ForeColor" = [System.Drawing.Color]::Black
-        "HeaderBackground" = [System.Drawing.Color]::FromArgb(0, 120, 215)
-        "HeaderForeColor" = [System.Drawing.Color]::White
-        "ButtonBackground" = [System.Drawing.Color]::FromArgb(0, 120, 215)
-        "ButtonForeColor" = [System.Drawing.Color]::White
-        "PanelBackground" = [System.Drawing.Color]::White
-        "BorderColor" = [System.Drawing.Color]::FromArgb(213, 213, 213)
-    }
-    "Dark" = @{
-        "Background" = [System.Drawing.Color]::FromArgb(45, 45, 48)
-        "ForeColor" = [System.Drawing.Color]::White
-        "HeaderBackground" = [System.Drawing.Color]::FromArgb(30, 30, 30)
-        "HeaderForeColor" = [System.Drawing.Color]::White
-        "ButtonBackground" = [System.Drawing.Color]::FromArgb(0, 122, 204)
-        "ButtonForeColor" = [System.Drawing.Color]::White
-        "PanelBackground" = [System.Drawing.Color]::FromArgb(37, 37, 38)
-        "BorderColor" = [System.Drawing.Color]::FromArgb(67, 67, 70)
-    }
-}
-
-# Function to apply theme
-Function Apply-Theme {
-    param (
-        [string]$ThemeName
-    )
-    
-    $theme = $themes[$ThemeName]
-    
-    # Apply to form
-    $Form.BackColor = $theme["Background"]
-    $Form.ForeColor = $theme["ForeColor"]
-    
-    # Apply to header
-    $headerPanel.BackColor = $theme["HeaderBackground"]
-    $lblTitle.ForeColor = $theme["HeaderForeColor"]
-    
-    # Apply to instructions
-    $instructionsPanel.BackColor = $theme["Background"]
-    $lblInstructions.ForeColor = $theme["ForeColor"]
-    
-    # Apply to category panels
-    foreach ($control in $mainPanel.Controls) {
-        if ($control -is [System.Windows.Forms.GroupBox]) {
-            $control.BackColor = $theme["PanelBackground"]
-            $control.ForeColor = $theme["ForeColor"]
-        }
-    }
-    
-    # Apply to buttons
-    $btnApply.BackColor = $theme["ButtonBackground"]
-    $btnApply.ForeColor = $theme["ButtonForeColor"]
-    $btnRefresh.BackColor = $theme["ButtonBackground"]
-    $btnRefresh.ForeColor = $theme["ButtonForeColor"]
-    
-    # Update tooltip colors
-    $toolTip.BackColor = $theme["PanelBackground"]
-    $toolTip.ForeColor = $theme["ForeColor"]
-}
-
-# Add theme toggle button
-$btnTheme = New-Object System.Windows.Forms.Button
-$btnTheme.Text = "Toggle Theme"
-$btnTheme.Size = New-Object System.Drawing.Size(120, 30)
-$btnTheme.Location = New-Object System.Drawing.Point(360, 15)
-$btnTheme.BackColor = $themes["Light"]["ButtonBackground"]
-$btnTheme.ForeColor = $themes["Light"]["ButtonForeColor"]
-$btnTheme.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-$buttonPanel.Controls.Add($btnTheme)
-
-# Theme toggle event handler
-$script:currentTheme = "Light"
-$btnTheme.Add_Click({
-    $script:currentTheme = if ($script:currentTheme -eq "Light") { "Dark" } else { "Light" }
-    Apply-Theme $script:currentTheme
-})
-
-# Apply initial theme
-Apply-Theme "Light"
+$Form.MinimumSize = New-Object System.Drawing.Size(800, 600) # Set minimum size
+$Form.MaximizeBox = $true # Allow maximizing
 
 # Create main container panel with scrolling
-$mainPanel = New-Object System.Windows.Forms.Panel
-$mainPanel.AutoScroll = $true
-$mainPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
-$mainPanel.Padding = New-Object System.Windows.Forms.Padding(20)
-$Form.Controls.Add($mainPanel)
+$containerPanel = New-Object System.Windows.Forms.Panel
+$containerPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$containerPanel.AutoScroll = $true
+$Form.Controls.Add($containerPanel)
 
-# Header Panel
+# Header Panel (Fixed at top)
 $headerPanel = New-Object System.Windows.Forms.Panel
 $headerPanel.Height = 60
 $headerPanel.Dock = [System.Windows.Forms.DockStyle]::Top
 $headerPanel.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 215)
-$mainPanel.Controls.Add($headerPanel)
+$containerPanel.Controls.Add($headerPanel)
 
 # Title Label
 $lblTitle = New-Object System.Windows.Forms.Label
@@ -2368,65 +2284,53 @@ $lblTitle.AutoSize = $true
 $lblTitle.Location = New-Object System.Drawing.Point(20, 15)
 $headerPanel.Controls.Add($lblTitle)
 
-# Instructions Panel
+# Instructions Panel (Fixed below header)
 $instructionsPanel = New-Object System.Windows.Forms.Panel
 $instructionsPanel.Height = 50
 $instructionsPanel.Dock = [System.Windows.Forms.DockStyle]::Top
+$instructionsPanel.BackColor = [System.Drawing.Color]::FromArgb(248, 248, 248)
 $instructionsPanel.Padding = New-Object System.Windows.Forms.Padding(20, 10, 20, 10)
-$mainPanel.Controls.Add($instructionsPanel)
+$containerPanel.Controls.Add($instructionsPanel)
 
 # Instructions Label
 $lblInstructions = New-Object System.Windows.Forms.Label
-$lblInstructions.Text = "Select the security components you want to disable. Use caution as this may affect system security."
+$lblInstructions.Text = "Select the security components you want to manage. Use caution as changes may affect system security."
 $lblInstructions.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $lblInstructions.AutoSize = $true
+$lblInstructions.ForeColor = [System.Drawing.Color]::FromArgb(70, 70, 70)
 $instructionsPanel.Controls.Add($lblInstructions)
 
-# Create Category Panels
-$categories = @{
-    "Core Protection" = @(
-        "Real-Time Protection",
-        "Cloud-Delivered Protection",
-        "Automatic Sample Submission"
-    )
-    "System Security" = @(
-        "Core Isolation Memory Integrity",
-        "Exploit Protection",
-        "Controlled Folder Access"
-    )
-    "Network Security" = @(
-        "Firewall",
-        "Network Protection",
-        "Firewall Advanced Security"
-    )
-    "Advanced Features" = @(
-        "Advanced Protection Features",
-        "System Guard",
-        "Kernel Protection"
-    )
-}
+# Scrollable Content Panel
+$contentPanel = New-Object System.Windows.Forms.Panel
+$contentPanel.AutoScroll = $true
+$contentPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
+$contentPanel.Padding = New-Object System.Windows.Forms.Padding(20)
+$containerPanel.Controls.Add($contentPanel)
 
-$yOffset = 120
+# Create Category Panels with improved layout
+$yOffset = 10
 foreach ($category in $categories.Keys) {
-    # Category Panel
+    # Category Panel with rounded corners and shadow effect
     $categoryPanel = New-Object System.Windows.Forms.GroupBox
     $categoryPanel.Text = $category
     $categoryPanel.Location = New-Object System.Drawing.Point(20, $yOffset)
-    $categoryPanel.Size = New-Object System.Drawing.Size(740, 150)
+    $categoryPanel.Size = New-Object System.Drawing.Size(720, 150)
     $categoryPanel.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-    $mainPanel.Controls.Add($categoryPanel)
+    $categoryPanel.BackColor = [System.Drawing.Color]::White
+    $contentPanel.Controls.Add($categoryPanel)
 
-    # Add components to category
+    # Add components to category with improved spacing
     $xPos = 20
     $yPos = 30
     foreach ($component in $categories[$category]) {
-        # Component Container
+        # Component Container with hover effect
         $componentPanel = New-Object System.Windows.Forms.Panel
-        $componentPanel.Size = New-Object System.Drawing.Size(230, 50)
+        $componentPanel.Size = New-Object System.Drawing.Size(220, 50)
         $componentPanel.Location = New-Object System.Drawing.Point($xPos, $yPos)
+        $componentPanel.BackColor = [System.Drawing.Color]::White
         $categoryPanel.Controls.Add($componentPanel)
 
-        # Checkbox
+        # Checkbox with improved styling
         $checkbox = New-Object System.Windows.Forms.CheckBox
         $checkbox.Text = $component
         $checkbox.Location = New-Object System.Drawing.Point(5, 5)
@@ -2434,54 +2338,73 @@ foreach ($category in $categories.Keys) {
         $checkbox.Font = New-Object System.Drawing.Font("Segoe UI", 9)
         $componentPanel.Controls.Add($checkbox)
 
-        # Status Label
+        # Status Label with improved colors
         $statusLabel = New-Object System.Windows.Forms.Label
-        $statusLabel.Text = "Status: Enabled"
-        $statusLabel.ForeColor = [System.Drawing.Color]::Green
+        $statusLabel.Text = "Status: Checking..."
         $statusLabel.Location = New-Object System.Drawing.Point(20, 25)
         $statusLabel.AutoSize = $true
         $statusLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
         $componentPanel.Controls.Add($statusLabel)
 
-        $xPos += 240
-        if ($xPos > 500) {
+        # Add hover effect
+        $componentPanel.Add_MouseEnter({
+            $this.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+        })
+        $componentPanel.Add_MouseLeave({
+            $this.BackColor = [System.Drawing.Color]::White
+        })
+
+        $xPos += 235
+        if ($xPos > 480) {
             $xPos = 20
-            $yPos += 60
+            $yPos += 55
         }
 
-        # Add tooltip to the component panel
+        # Enhanced tooltip
         $toolTip.SetToolTip($componentPanel, $tooltipDescriptions[$component])
         $toolTip.SetToolTip($checkbox, $tooltipDescriptions[$component])
     }
 
-    $yOffset += 170
+    $yOffset += 160
 }
 
-# Action Buttons Panel
+# Action Buttons Panel (Fixed at bottom)
 $buttonPanel = New-Object System.Windows.Forms.Panel
 $buttonPanel.Height = 60
 $buttonPanel.Dock = [System.Windows.Forms.DockStyle]::Bottom
-$buttonPanel.Padding = New-Object System.Windows.Forms.Padding(20, 10, 20, 10)
-$mainPanel.Controls.Add($buttonPanel)
+$buttonPanel.BackColor = [System.Drawing.Color]::White
+$buttonPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+$Form.Controls.Add($buttonPanel)
 
-# Apply Button
+# Apply Button with improved styling
 $btnApply = New-Object System.Windows.Forms.Button
 $btnApply.Text = "Apply Changes"
-$btnApply.Size = New-Object System.Drawing.Size(120, 30)
-$btnApply.Location = New-Object System.Drawing.Point(640, 15)
+$btnApply.Size = New-Object System.Drawing.Size(120, 35)
+$btnApply.Location = New-Object System.Drawing.Point(640, 12)
 $btnApply.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 215)
 $btnApply.ForeColor = [System.Drawing.Color]::White
 $btnApply.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$btnApply.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
 $buttonPanel.Controls.Add($btnApply)
 
-# Refresh Button
+# Refresh Button with improved styling
 $btnRefresh = New-Object System.Windows.Forms.Button
-$btnRefresh.Text = "Refresh Status"
-$btnRefresh.Size = New-Object System.Drawing.Size(120, 30)
-$btnRefresh.Location = New-Object System.Drawing.Point(500, 15)
+$btnRefresh.Text = "↻ Refresh Status"
+$btnRefresh.Size = New-Object System.Drawing.Size(120, 35)
+$btnRefresh.Location = New-Object System.Drawing.Point(500, 12)
 $btnRefresh.BackColor = [System.Drawing.Color]::White
 $btnRefresh.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$btnRefresh.Font = New-Object System.Drawing.Font("Segoe UI", 9)
 $buttonPanel.Controls.Add($btnRefresh)
+
+# Progress Label
+$lblProgress = New-Object System.Windows.Forms.Label
+$lblProgress.Text = "Ready"
+$lblProgress.AutoSize = $true
+$lblProgress.Location = New-Object System.Drawing.Point(20, 20)
+$lblProgress.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$lblProgress.ForeColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
+$buttonPanel.Controls.Add($lblProgress)
 
 # Run initial checks
 CheckTamperProtection
@@ -2489,9 +2412,35 @@ CheckTamperProtection
 # Refresh Status Indicators
 RefreshStatus
 
-# Show Form
-$Form.Add_Shown({$Form.Activate()})
-[void]$Form.ShowDialog()
+# Add button click events
+$btnApply.Add_Click({
+    $disableComponents = $false
+    foreach ($control in $contentPanel.Controls) {
+        if ($control -is [System.Windows.Forms.CheckBox] -and $control.Checked) {
+            $disableComponents = $true
+            break
+        }
+    }
+    
+    if ($disableComponents) {
+        DisableDefenderComponents
+    } else {
+        EnableDefenderComponents
+    }
+})
+
+$btnRefresh.Add_Click({
+    RefreshStatus
+})
+
+# Initialize form
+$Form.Add_Shown({
+    RefreshStatus
+})
+
+# Show form
+[System.Windows.Forms.Application]::EnableVisualStyles()
+$Form.ShowDialog()
 
 # End of Script
 LogMessage "Script execution completed."
