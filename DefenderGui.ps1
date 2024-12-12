@@ -1196,26 +1196,18 @@ Function RefreshStatus
 {
     $Status = GetComponentStatus
 
-    # Update status labels using the GetStatusText function
-    $lblRTPStatus.Text = "Status: " + (GetStatusText $Status["RealTimeProtection"])
-    $lblCloudStatus.Text = "Status: " + (GetStatusText $Status["CloudProtection"])
-    $lblSampleStatus.Text = "Status: " + (GetStatusText $Status["SampleSubmission"])
-    $lblScheduledStatus.Text = "Status: " + (GetStatusText $Status["ScheduledScans"])
-    $lblServicesStatus.Text = "Status: " + (GetStatusText $Status["Services"])
-    $lblFirewallStatus.Text = "Status: " + (GetStatusText $Status["Firewall"])
-    $lblAUStatus.Text = "Status: " + (GetStatusText $Status["AutomaticUpdates"])
-    $lblSmartScreenStatus.Text = "Status: " + (GetStatusText $Status["SmartScreen"])
-    $lblNotificationsStatus.Text = "Status: " + (GetStatusText $Status["SecurityNotifications"])
-    $lblCFAStatus.Text = "Status: " + (GetStatusText $Status["ControlledFolderAccess"])
-    $lblCoreIsolationStatus.Text = "Status: " + (GetStatusText $Status["CoreIsolation"])
-    $lblExploitProtectionStatus.Text = "Status: " + (GetStatusText $Status["ExploitProtection"])
-    $lblRansomwareStatus.Text = "Status: " + (GetStatusText $Status["RansomwareProtection"])
-    $lblDOStatus.Text = "Status: " + (GetStatusText $Status["DeliveryOptimization"])
-    $lblASRStatus.Text = "Status: " + (GetStatusText $Status["ASRRules"])
-    $lblNPStatus.Text = "Status: " + (GetStatusText $Status["NetworkProtection"])
-    $lblAppLockerStatus.Text = "Status: " + (GetStatusText $Status["AppLocker"])
-    $lblCredentialGuardStatus.Text = "Status: " + (GetStatusText $Status["CredentialGuard"])
-    $lblFirewallAdvancedStatus.Text = "Status: " + (GetStatusText $Status["FirewallAdvanced"])
+    # Update status labels using the stored references
+    foreach ($component in $script:statusLabels.Keys) {
+        $statusText = "Status: " + (GetStatusText $Status[$component.Replace(" ", "")])
+        $script:statusLabels[$component].Text = $statusText
+        
+        # Update label color based on status
+        if ($Status[$component.Replace(" ", "")]) {
+            $script:statusLabels[$component].ForeColor = [System.Drawing.Color]::FromArgb(0, 130, 0) # Green for enabled
+        } else {
+            $script:statusLabels[$component].ForeColor = [System.Drawing.Color]::FromArgb(200, 0, 0) # Red for disabled
+        }
+    }
 }
 
 # Add these functions after your existing functions but before the GUI code
@@ -1347,6 +1339,7 @@ Function Disable-ForensicsCapabilities
 
 
 
+
         # Disable Superfetch
         Stop-Service SysMain -Force
         Set-Service SysMain -StartupType Disabled
@@ -1354,6 +1347,7 @@ Function Disable-ForensicsCapabilities
         # Remove Memory Dumps
         Remove-Item C:\Windows\Memory.dmp -Force -ErrorAction SilentlyContinue
         Remove-Item C:\Windows\Minidump\*.* -Force -ErrorAction SilentlyContinue
+
 
 
         LogMessage "Forensics Capabilities disabled successfully."
@@ -2415,8 +2409,8 @@ RefreshStatus
 # Add button click events
 $btnApply.Add_Click({
     $disableComponents = $false
-    foreach ($control in $contentPanel.Controls) {
-        if ($control -is [System.Windows.Forms.CheckBox] -and $control.Checked) {
+    foreach ($checkbox in $script:checkboxes.Values) {
+        if ($checkbox.Checked) {
             $disableComponents = $true
             break
         }
@@ -2430,12 +2424,18 @@ $btnApply.Add_Click({
 })
 
 $btnRefresh.Add_Click({
+    $lblProgress.Text = "Refreshing status..."
+    $btnRefresh.Enabled = $false
     RefreshStatus
+    $btnRefresh.Enabled = $true
+    $lblProgress.Text = "Ready"
 })
 
 # Initialize form
 $Form.Add_Shown({
+    $lblProgress.Text = "Checking initial status..."
     RefreshStatus
+    $lblProgress.Text = "Ready"
 })
 
 # Show form
